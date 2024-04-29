@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fire Program</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 20px;
+            max-width: 600px;
+            margin: auto;
+        }
+        h1 {
+            color: #0056b3;
+        }
+        p {
+            font-size: 16px;
+            line-height: 1.5;
+        }
+        .data-field {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .data-value {
+            font-weight: bold;
+            color: #007bff;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:active {
+            background-color: #003885;
+        }
+        form {
+            margin-bottom: 10px; 
+        }
+    </style>
+    <script>
+        function refreshPrediction() {
+            fetch('/trigger_prediction')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('prediction').textContent = data.prediction;
+                    document.getElementById('probability').textContent = (data.probability * 100).toFixed(2) + '%';
+                    document.getElementById('lon').textContent = data.lon;
+                    document.getElementById('lat').textContent = data.lat;
+                })
+                .catch(error => {
+                    console.error('Error fetching prediction:', error);
+                });
+        }
+
+        // Call refreshPrediction function initially and every 3 seconds
+        refreshPrediction();
+        setInterval(refreshPrediction, 3000);
+
+        // Countdown Timer
+        function startTimer(duration, display) {
+            var timer = duration, minutes, seconds;
+            setInterval(function () {
+                minutes = parseInt(timer / 60, 10);
+                seconds = parseInt(timer % 60, 10);
+
+                minutes = minutes < 10 ? "0" + minutes : minutes;
+                seconds = seconds < 10 ? "0" + seconds : seconds;
+
+                display.textContent = minutes + ":" + seconds;
+
+                if (--timer < 0) {
+                    timer = duration;
+                }
+            }, 1000);
+        }
+
+        window.onload = function () {
+            var tenMinutes = 60 * 10,
+                display = document.querySelector('#time');
+            startTimer(tenMinutes, display);
+        };
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Prediction Results</h1>
+        <div class="data-field">
+            <span>Prediction:</span>
+            <span id="prediction" class="data-value"></span>
+        </div>
+        <div class="data-field">
+            <span>Probability:</span>
+            <span id="probability" class="data-value"></span>
+        </div>
+        <div class="data-field">
+            <span>Longitude:</span>
+            <span id="lon" class="data-value"></span>
+        </div>
+        <div class="data-field">
+            <span>Latitude:</span>
+            <span id="lat" class="data-value"></span>
+        </div>
+        <div class="data-field">
+            <span>Timer:</span>
+            <span id="time" class="data-value">10:00</span>
+        </div>
+        <form method="POST" action="/run_script">
+            <button type="submit" name="submit_button" value="Run Drone Clustering">Run Drone Clustering</button>
+        </form>
+        <form method="POST" action="/run_script">
+            <button type="submit" name="submit_button" value="Fire History">Fire History</button>
+        </form>
+    </div>
+</body>
+</html>
