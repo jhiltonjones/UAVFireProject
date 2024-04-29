@@ -74,11 +74,9 @@
                 });
         }
 
-        // Call refreshPrediction function initially and every 3 seconds
         refreshPrediction();
         setInterval(refreshPrediction, 3000);
 
-        // Countdown Timer
         function startTimer(duration, display) {
             var timer = duration, minutes, seconds;
             setInterval(function () {
