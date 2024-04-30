@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, scrolledtext
 import subprocess
 import os
 import rasterio
@@ -8,12 +8,52 @@ import numpy as np
 from concurrent.futures import ThreadPoolExecutor
 import math
 import matplotlib.pyplot as plt
+import sys
+from pyproj import Proj, transform
+from pyproj import Transformer
 
 
-# Paths
 script_directory = '/home/jack/elmfire/tutorials/Custom/Automated_drone/04-fire-potential'
 script_path = os.path.join(script_directory, '01-run.sh')
 wx_csv_path = os.path.join(script_directory, 'wx.csv')
+
+from pyproj import Transformer
+
+def convert_utm_to_lat_lon_from_file(filepath, input_crs='epsg:32610', output_crs='epsg:4326'):
+    """
+    Read UTM coordinates from a file and convert them to latitude and longitude.
+
+    Args:
+    filepath (str): Path to the file containing UTM coordinates.
+    input_crs (str): The EPSG code of the input coordinate reference system (default UTM).
+    output_crs (str): The EPSG code of the output coordinate reference system (latitude and longitude).
+
+    Returns:
+    dict: A dictionary with keys as position descriptions and values as tuples of (longitude, latitude).
+    """
+    # Open the file and read the coordinates
+    with open(filepath, 'r') as file:
+        line = file.readline().strip()
+        utm_coords_strings = line.split('\t')  # Assuming the file has a single line with tab-separated tuples
+
+    # Parse the coordinates into tuples of floats
+    utm_coords = []
+    for coord in utm_coords_strings:
+        parts = coord.strip('()').split(',')
+        utm_coords.append((float(parts[0]), float(parts[1])))
+
+    # Convert coordinates
+    transformer = Transformer.from_crs(input_crs, output_crs, always_xy=True)
+    results = {}
+    positions = ["Top Left", "Top Right", "Bottom Left", "Bottom Right"]
+
+    for pos, (x, y) in zip(positions, utm_coords):
+        lon, lat = transformer.transform(x, y)
+        results[pos] = (lon, lat)
+
+    return results
+
+
 def quadrant_sum(cumulative_sum, top, left, bottom, right):
     total = cumulative_sum[bottom, right]
     top_area = cumulative_sum[top-1, right] if top > 0 else 0
@@ -38,6 +78,11 @@ def run_shell_script(script_path):
         print(f"An error occurred while running the shell script: {e}")
         return False
     return True
+def generate_coordinates(filepath, geo_mid_top_left, geo_mid_top_right, geo_mid_bottom_right, geo_mid_bottom_left):
+    
+    with open(filepath, 'w') as file:
+        file.write(f"{geo_mid_top_left}\t{geo_mid_top_right}\t{geo_mid_bottom_left}\t{geo_mid_bottom_right}\n")
+
 def execute_and_process():
     if run_shell_script(script_path):
         print("Shell script executed successfully.")
@@ -74,8 +119,8 @@ def process_raster():
                     optimal_horizontal = horizontal
                     optimal_vertical = vertical
 
-        print(f"Optimal horizontal line at: {optimal_horizontal}")
-        print(f"Optimal vertical line at: {optimal_vertical}")
+        # print(f"Optimal horizontal line at: {optimal_horizontal}")
+        # print(f"Optimal vertical line at: {optimal_vertical}")
 
 
 
@@ -83,7 +128,14 @@ def process_raster():
         mid_top_right = (top + optimal_horizontal) // 2, (optimal_vertical + right) // 2
         mid_bottom_left = (optimal_horizontal + bottom) // 2, (left + optimal_vertical) // 2
         mid_bottom_right = (optimal_horizontal + bottom) // 2, (optimal_vertical + right) // 2
-
+        transform = src.transform
+        geo_mid_top_left = transform * (mid_top_left[1], mid_top_left[0])  
+        geo_mid_top_right = transform * (mid_top_right[1], mid_top_right[0])
+        geo_mid_bottom_left = transform * (mid_bottom_left[1], mid_bottom_left[0])
+        geo_mid_bottom_right = transform * (mid_bottom_right[1], mid_bottom_right[0])
+        generate_coordinates('/home/jack/drone_coordinates.txt', geo_mid_top_left, geo_mid_top_right, geo_mid_bottom_right, geo_mid_bottom_left )
+        filepath = '/home/jack/drone_coordinates.txt'
+        converted_coords = convert_utm_to_lat_lon_from_file(filepath)
         top_right_top_left = optimal_horizontal, optimal_vertical
         top_right_top_right = optimal_horizontal, right
         top_right_bottom_left = bottom, optimal_vertical
@@ -95,13 +147,13 @@ def process_raster():
         num_pixels_top_right = np.count_nonzero(~band1_masked.mask[:optimal_horizontal, optimal_vertical:])
         num_pixels_bottom_left = np.count_nonzero(~band1_masked.mask[optimal_horizontal:, :optimal_vertical])
         num_pixels_bottom_right = np.count_nonzero(~band1_masked.mask[optimal_horizontal:, optimal_vertical:])
-
+        
         area_top_left = num_pixels_top_left * pixel_area / 1e6  
-
+        
         area_top_right = num_pixels_top_right * pixel_area / 1e6
         area_bottom_left = num_pixels_bottom_left * pixel_area / 1e6
         area_bottom_right = num_pixels_bottom_right * pixel_area / 1e6
-
+        
         quadrants = [
             ("Top Left", area_top_left),
             ("Top Right", area_top_right),
@@ -121,7 +173,7 @@ def process_raster():
             num_passes = math.ceil(side_length / HFOV_width)  
             time_per_pass = side_length / speed_ms  
             total_time_detection = time_per_pass * num_passes / 60  
-            print(f"Time to cover {quadrant} Quadrant with one dection drone: {total_time_detection:.2f} minutes")
+            # print(f"Time to cover {quadrant} Quadrant with one dection drone: {total_time_detection:.2f} minutes")
             if area < 200:
                 time_needed_to_detect = 5
             elif area <400:
@@ -139,19 +191,20 @@ def process_raster():
             print(f"The total number of dornes needed for this area is: {total_num_drones}")
 
 
-
+            
         line_width = 2  
 
-        print(f"Suppressor Drone 1  go to coordinates: {mid_top_left}")
-        print(f"Suppressor Drone 2  go to coordinates: {mid_top_right}")
-        print(f"Suppressor Drone 3  go to coordinates: {mid_bottom_left}")
-        print(f"Suppressor Drone 4  go to coordinates: {mid_bottom_right}")
+
+        print(f"Suppressor Drone 1 go to coordinates: Longitude {converted_coords['Top Left'][0]}, Latitude {converted_coords['Top Left'][1]}")
+        print(f"Suppressor Drone 2 go to coordinates: Longitude {converted_coords['Top Right'][0]}, Latitude {converted_coords['Top Right'][1]}")
+        print(f"Suppressor Drone 3 go to coordinates: Longitude {converted_coords['Bottom Left'][0]}, Latitude {converted_coords['Bottom Left'][1]}")
+        print(f"Suppressor Drone 4 go to coordinates: Longitude {converted_coords['Bottom Right'][0]}, Latitude {converted_coords['Bottom Right'][1]}")
+
 
         print(f"Detection Drone 1 go to coordinates: {top_right_top_left}")
         print(f"Detection Drone 2 go to coordinates: {top_right_top_right}")
         print(f"Detection Drone 3 go to coordinates: {top_right_bottom_left}")
         print(f"Detection Drone 4 go to coordinates: {top_right_bottom_right}")
-        # Visualization code
         plt.imshow(band1_masked, cmap='coolwarm')
         plt.axhline(y=optimal_horizontal, color='k', linestyle='-', linewidth=line_width)
         plt.axvline(x=optimal_vertical, color='k', linestyle='-', linewidth=line_width)
@@ -167,8 +220,6 @@ def process_raster():
     messagebox.showinfo("Success", "Raster processed successfully.")
 
 
-
-# Modify the Bash script
 def modify_bash_script():
     new_lon = lon_entry.get()
     new_lat = lat_entry.get()
@@ -176,7 +227,7 @@ def modify_bash_script():
     try:
         with open(script_path, 'r') as file:
             lines = file.readlines()
-
+        
         new_lines = []
         for line in lines:
             if '--center_lon' in line or '--center_lat' in line:
@@ -191,14 +242,13 @@ def modify_bash_script():
                 new_lines.append(' '.join(parts) + '\n')
             else:
                 new_lines.append(line)
-
+    
         with open(script_path, 'w') as file:
             file.writelines(new_lines)
         messagebox.showinfo("Success", "Bash script updated successfully.")
     except Exception as e:
         messagebox.showerror("Error", f"Failed to modify the Bash script: {str(e)}")
 
-# Modify the wx.csv file
 def modify_wx_csv():
     new_rows = wx_entry.get()
     try:
@@ -214,11 +264,28 @@ def modify_wx_csv():
     except Exception as e:
         messagebox.showerror("Error", f"Failed to modify the wx.csv file: {str(e)}")
 
-# GUI setup
+class StdoutRedirector(object):
+    def __init__(self, text_widget):
+        self.text_widget = text_widget
+
+    def write(self, string):
+        self.text_widget.insert(tk.END, string)
+        self.text_widget.see(tk.END)  
+
+    def flush(self):
+        pass
+
+def execute_and_process(output_widget):
+    sys.stdout = StdoutRedirector(output_widget)
+    if run_shell_script(script_path):
+        output_widget.insert(tk.END, "Shell script executed successfully.\n")
+        process_raster()
+    else:
+        messagebox.showerror("Error", "Failed to execute the shell script.")
+
 root = tk.Tk()
 root.title("Configuration Editor")
 
-# Entry widgets for script parameters
 tk.Label(root, text="Enter Longitude:").pack(pady=(10, 0))
 lon_entry = ttk.Entry(root, width=20)
 lon_entry.pack(pady=5)
@@ -229,17 +296,22 @@ tk.Label(root, text="Enter buffer area:").pack(pady=(10, 0))
 buffer_entry = ttk.Entry(root, width=20)
 buffer_entry.pack(pady=5)
 
-# Entry widget for CSV data
 tk.Label(root, text="Enter weather information(ws, wd, m1, m10, m100, lh, lw):").pack(pady=(10, 0))
-wx_entry = ttk.Entry(root, width=40 )
+wx_entry = ttk.Entry(root, width=40)
 wx_entry.pack(pady=5)
 
-# Buttons for saving changes
-save_script_button = ttk.Button(root, text="Save Bash Script", command=modify_bash_script)
+output_area = scrolledtext.ScrolledText(root, height=15, width=100)
+output_area.pack(pady=(5, 10))
+
+save_script_button = ttk.Button(root, text="Save Bash Script", command=lambda: modify_bash_script())
 save_script_button.pack(pady=5)
-save_csv_button = ttk.Button(root, text="Save CSV", command=modify_wx_csv)
+save_csv_button = ttk.Button(root, text="Save CSV", command=lambda: modify_wx_csv())
 save_csv_button.pack(pady=5)
 
-run_button = ttk.Button(root, text="Run Script and Process Raster", command=execute_and_process)
+run_button = ttk.Button(root, text="Run Script and Process Raster", command=lambda: execute_and_process(output_area))
 run_button.pack(pady=20)
+
 root.mainloop()
+
+
+

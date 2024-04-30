@@ -74,31 +74,9 @@
                 });
         }
 
-        refreshPrediction();
-        setInterval(refreshPrediction, 3000);
-
-        function startTimer(duration, display) {
-            var timer = duration, minutes, seconds;
-            setInterval(function () {
-                minutes = parseInt(timer / 60, 10);
-                seconds = parseInt(timer % 60, 10);
-
-                minutes = minutes < 10 ? "0" + minutes : minutes;
-                seconds = seconds < 10 ? "0" + seconds : seconds;
-
-                display.textContent = minutes + ":" + seconds;
-
-                if (--timer < 0) {
-                    timer = duration;
-                }
-            }, 1000);
-        }
-
-        window.onload = function () {
-            var tenMinutes = 60 * 10,
-                display = document.querySelector('#time');
-            startTimer(tenMinutes, display);
-        };
+        // Call refreshPrediction function initially and every 3 seconds
+        refreshPrediction(); // Call initially
+        setInterval(refreshPrediction, 3000); // Call every 3 seconds
     </script>
 </head>
 <body>
@@ -119,10 +97,6 @@
         <div class="data-field">
             <span>Latitude:</span>
             <span id="lat" class="data-value"></span>
-        </div>
-        <div class="data-field">
-            <span>Timer:</span>
-            <span id="time" class="data-value">10:00</span>
         </div>
         <form method="POST" action="/run_script">
             <button type="submit" name="submit_button" value="Run Drone Clustering">Run Drone Clustering</button>
