@@ -14,7 +14,8 @@ from pyproj import Transformer
 
 
 script_directory = './models/04-fire-potential'
-script_path = './01-run.sh'
+script_path = os.path.join(script_directory, '01-run.sh')
+script_filename = './01-run.sh'
 wx_csv_path = os.path.join(script_directory, 'wx.csv')
 
 from pyproj import Transformer
@@ -69,12 +70,13 @@ def compute_diff(cumulative_sum, horizontal, vertical, shape):
 
     diff = max(top_left, top_right, bottom_left, bottom_right) - min(top_left, top_right, bottom_left, bottom_right)
     return diff, horizontal, vertical
-def run_shell_script(script_path, output_widget):
+def run_shell_script(script_filename, output_widget):
     """ Run the shell script to generate the raster data. """
+    global script_directory
     try:
         display(output_widget, "Running Fire Model...") # TODO: Debug display issue. Probably threading issue
         os.chdir(script_directory)
-        subprocess.run(['bash', script_path], check=True)
+        subprocess.run(['bash', script_filename], check=True)
         os.chdir("../../")
     except subprocess.CalledProcessError as e:
         print(f"An error occurred while running the shell script: {e}")
@@ -283,10 +285,9 @@ def modify_wx_csv():
 def display(output_widget, text):
     output_widget.insert(tk.END, f"{text}\n")
 
-def execute_and_process(output_widget):
-    global script_path
+def execute_and_process(script_filename, output_widget):
     # sys.stdout = StdoutRedirector(output_widget) # TODO: Immediately display messages in tkinter instead of redirecting though stdout
-    if run_shell_script(script_path, output_widget):
+    if run_shell_script(script_filename, output_widget):
         display(output_widget, "Shell script executed successfully.")
         process_raster(output_widget)
     else:
@@ -317,7 +318,7 @@ save_script_button.pack(pady=5)
 save_csv_button = ttk.Button(root, text="Save CSV", command=lambda: modify_wx_csv())
 save_csv_button.pack(pady=5)
 
-run_button = ttk.Button(root, text="Run Script and Process Raster", command=lambda: execute_and_process(output_area))
+run_button = ttk.Button(root, text="Run Script and Process Raster", command=lambda: execute_and_process(script_filename, output_area))
 run_button.pack(pady=20)
 
 root.mainloop()
