@@ -9,10 +9,52 @@ from concurrent.futures import ThreadPoolExecutor
 import math
 import matplotlib.pyplot as plt
 import sys
+from pyproj import Proj, transform
+from pyproj import Transformer
 
-script_directory = '/home/jack/elmfire/tutorials/Custom/Automated_drone/04-fire-potential'
+
+script_directory = './models/04-fire-potential'
 script_path = os.path.join(script_directory, '01-run.sh')
+script_re_path = '01-run.sh'
 wx_csv_path = os.path.join(script_directory, 'wx.csv')
+
+from pyproj import Transformer
+
+def convert_utm_to_lat_lon_from_file(filepath, input_crs='epsg:32610', output_crs='epsg:4326'):
+    """
+    Read UTM coordinates from a file and convert them to latitude and longitude.
+
+    Args:
+    filepath (str): Path to the file containing UTM coordinates.
+    input_crs (str): The EPSG code of the input coordinate reference system (default UTM).
+    output_crs (str): The EPSG code of the output coordinate reference system (latitude and longitude).
+
+    Returns:
+    dict: A dictionary with keys as position descriptions and values as tuples of (longitude, latitude).
+    """
+    # Open the file and read the coordinates
+    with open(filepath, 'r') as file:
+        line = file.readline().strip()
+        utm_coords_strings = line.split('\t')  # Assuming the file has a single line with tab-separated tuples
+
+    # Parse the coordinates into tuples of floats
+    utm_coords = []
+    for coord in utm_coords_strings:
+        parts = coord.strip('()').split(',')
+        utm_coords.append((float(parts[0]), float(parts[1])))
+
+    # Convert coordinates
+    transformer = Transformer.from_crs(input_crs, output_crs, always_xy=True)
+    results = {}
+    positions = ["Top Left", "Top Right", "Bottom Left", "Bottom Right"]
+
+    for pos, (x, y) in zip(positions, utm_coords):
+        lon, lat = transformer.transform(x, y)
+        results[pos] = (lon, lat)
+
+    return results
+
+
 def quadrant_sum(cumulative_sum, top, left, bottom, right):
     total = cumulative_sum[bottom, right]
     top_area = cumulative_sum[top-1, right] if top > 0 else 0
@@ -28,23 +70,31 @@ def compute_diff(cumulative_sum, horizontal, vertical, shape):
 
     diff = max(top_left, top_right, bottom_left, bottom_right) - min(top_left, top_right, bottom_left, bottom_right)
     return diff, horizontal, vertical
-def run_shell_script(script_path):
+def run_shell_script(script_re_path, output_widget):
     """ Run the shell script to generate the raster data. """
     try:
+        display(output_widget, "Running Fire Model...") # TODO: Debug display issue. Probably threading issue
         os.chdir(script_directory)
-        subprocess.run(['bash', script_path], check=True)
+        subprocess.run(['bash', script_re_path], check=True)
+        os.chdir("../../")
     except subprocess.CalledProcessError as e:
         print(f"An error occurred while running the shell script: {e}")
         return False
     return True
-def execute_and_process():
-    if run_shell_script(script_path):
-        print("Shell script executed successfully.")
-        process_raster()
-    else:
-        messagebox.showerror("Error", "Failed to execute the shell script.")
-def process_raster():
-    with rasterio.open('/home/jack/elmfire/tutorials/Custom/Automated_drone/04-fire-potential/outputs/head_fire_spread_rate_006.tif') as src:
+def generate_coordinates(filepath, geo_mid_top_left, geo_mid_top_right, geo_mid_bottom_right, geo_mid_bottom_left):
+    
+    with open(filepath, 'w') as file:
+        file.write(f"{geo_mid_top_left}\t{geo_mid_top_right}\t{geo_mid_bottom_left}\t{geo_mid_bottom_right}\n")
+
+# def execute_and_process():
+#     if run_shell_script(script_path):
+#         print("Shell script executed successfully.")
+#         process_raster()
+#     else:
+#         messagebox.showerror("Error", "Failed to execute the shell script.")
+def process_raster(output_widget):
+    with rasterio.open('./models/04-fire-potential/outputs/head_fire_spread_rate_006.tif') as src:
+        display(output_widget, "Raster accessed")
         band1 = src.read(1)  
         nodata = src.nodata
         mask = band1 == nodata
@@ -59,6 +109,7 @@ def process_raster():
 
         min_diff = np.inf
         optimal_horizontal, optimal_vertical = None, None
+        display(output_widget, "Starting raster procssing...")
 
         with ThreadPoolExecutor() as executor:
             futures = []
@@ -77,12 +128,18 @@ def process_raster():
         # print(f"Optimal vertical line at: {optimal_vertical}")
 
 
-
         mid_top_left = (top + optimal_horizontal) // 2, (left + optimal_vertical) // 2
         mid_top_right = (top + optimal_horizontal) // 2, (optimal_vertical + right) // 2
         mid_bottom_left = (optimal_horizontal + bottom) // 2, (left + optimal_vertical) // 2
         mid_bottom_right = (optimal_horizontal + bottom) // 2, (optimal_vertical + right) // 2
-
+        transform = src.transform
+        geo_mid_top_left = transform * (mid_top_left[1], mid_top_left[0])  
+        geo_mid_top_right = transform * (mid_top_right[1], mid_top_right[0])
+        geo_mid_bottom_left = transform * (mid_bottom_left[1], mid_bottom_left[0])
+        geo_mid_bottom_right = transform * (mid_bottom_right[1], mid_bottom_right[0])
+        generate_coordinates('./configs/drone_coordinates.txt', geo_mid_top_left, geo_mid_top_right, geo_mid_bottom_right, geo_mid_bottom_left )
+        filepath = './configs/drone_coordinates.txt'
+        converted_coords = convert_utm_to_lat_lon_from_file(filepath)
         top_right_top_left = optimal_horizontal, optimal_vertical
         top_right_top_right = optimal_horizontal, right
         top_right_bottom_left = bottom, optimal_vertical
@@ -107,10 +164,12 @@ def process_raster():
             ("Bottom Left", area_bottom_left),
             ("Bottom Right", area_bottom_right),
         ]
-        print(f"Area of Top Left Quadrant: {area_top_left} km²")
-        print(f"Area of Top Right Quadrant: {area_top_right} km²")
-        print(f"Area of Bottom Left Quadrant: {area_bottom_left} km²")
-        print(f"Area of Bottom Right Quadrant: {area_bottom_right} km²")
+        display(output_widget, "Shell script executed successfully.")
+        display(output_widget, "Shell script executed successfully.")
+        display(output_widget, f"Area of Top Left Quadrant: {area_top_left} km²")
+        display(output_widget, f"Area of Top Right Quadrant: {area_top_right} km²")
+        display(output_widget, f"Area of Bottom Left Quadrant: {area_bottom_left} km²")
+        display(output_widget, f"Area of Bottom Right Quadrant: {area_bottom_right} km²")
 
         HFOV_width = 4200  
         speed_ms = 22.73  
@@ -120,7 +179,7 @@ def process_raster():
             num_passes = math.ceil(side_length / HFOV_width)  
             time_per_pass = side_length / speed_ms  
             total_time_detection = time_per_pass * num_passes / 60  
-            # print(f"Time to cover {quadrant} Quadrant with one dection drone: {total_time_detection:.2f} minutes")
+            # display(output_widget, f"Time to cover {quadrant} Quadrant with one dection drone: {total_time_detection:.2f} minutes")
             if area < 200:
                 time_needed_to_detect = 5
             elif area <400:
@@ -133,23 +192,25 @@ def process_raster():
                 time_needed_to_detect = 9
 
             num_drones_needed = total_time_detection / time_needed_to_detect
-            print(f"The number of drones needed to complete this quandrant in {time_needed_to_detect} mins is: {num_drones_needed}")
+            display(output_widget, f"The number of drones needed to complete this quandrant in {time_needed_to_detect} mins is: {num_drones_needed}")
             total_num_drones += num_drones_needed
-            print(f"The total number of dornes needed for this area is: {total_num_drones}")
+            display(output_widget, f"The total number of dornes needed for this area is: {total_num_drones}")
 
 
             
         line_width = 2  
 
-        print(f"Suppressor Drone 1  go to coordinates: {mid_top_left}")
-        print(f"Suppressor Drone 2  go to coordinates: {mid_top_right}")
-        print(f"Suppressor Drone 3  go to coordinates: {mid_bottom_left}")
-        print(f"Suppressor Drone 4  go to coordinates: {mid_bottom_right}")
 
-        print(f"Detection Drone 1 go to coordinates: {top_right_top_left}")
-        print(f"Detection Drone 2 go to coordinates: {top_right_top_right}")
-        print(f"Detection Drone 3 go to coordinates: {top_right_bottom_left}")
-        print(f"Detection Drone 4 go to coordinates: {top_right_bottom_right}")
+        display(output_widget, f"Suppressor Drone 1 go to coordinates: Longitude {converted_coords['Top Left'][0]}, Latitude {converted_coords['Top Left'][1]}")
+        display(output_widget, f"Suppressor Drone 2 go to coordinates: Longitude {converted_coords['Top Right'][0]}, Latitude {converted_coords['Top Right'][1]}")
+        display(output_widget, f"Suppressor Drone 3 go to coordinates: Longitude {converted_coords['Bottom Left'][0]}, Latitude {converted_coords['Bottom Left'][1]}")
+        display(output_widget, f"Suppressor Drone 4 go to coordinates: Longitude {converted_coords['Bottom Right'][0]}, Latitude {converted_coords['Bottom Right'][1]}")
+
+
+        display(output_widget, f"Detection Drone 1 go to coordinates: {top_right_top_left}")
+        display(output_widget, f"Detection Drone 2 go to coordinates: {top_right_top_right}")
+        display(output_widget, f"Detection Drone 3 go to coordinates: {top_right_bottom_left}")
+        display(output_widget, f"Detection Drone 4 go to coordinates: {top_right_bottom_right}")
         plt.imshow(band1_masked, cmap='coolwarm')
         plt.axhline(y=optimal_horizontal, color='k', linestyle='-', linewidth=line_width)
         plt.axvline(x=optimal_vertical, color='k', linestyle='-', linewidth=line_width)
@@ -209,22 +270,26 @@ def modify_wx_csv():
     except Exception as e:
         messagebox.showerror("Error", f"Failed to modify the wx.csv file: {str(e)}")
 
-class StdoutRedirector(object):
-    def __init__(self, text_widget):
-        self.text_widget = text_widget
+# class StdoutRedirector(object):
+#     def __init__(self, text_widget):
+#         self.text_widget = text_widget
 
-    def write(self, string):
-        self.text_widget.insert(tk.END, string)
-        self.text_widget.see(tk.END)  
+#     def write(self, string):
+#         self.text_widget.insert(tk.END, string)
+#         self.text_widget.see(tk.END)  
 
-    def flush(self):
-        pass
+#     def flush(self):
+#         pass
+
+def display(output_widget, text):
+    output_widget.insert(tk.END, f"{text}\n")
 
 def execute_and_process(output_widget):
-    sys.stdout = StdoutRedirector(output_widget)
-    if run_shell_script(script_path):
-        output_widget.insert(tk.END, "Shell script executed successfully.\n")
-        process_raster()
+    global script_re_path
+    # sys.stdout = StdoutRedirector(output_widget) # TODO: Immediately display messages in tkinter instead of redirecting though stdout
+    if run_shell_script(script_re_path, output_widget):
+        display(output_widget, "Shell script executed successfully.")
+        process_raster(output_widget)
     else:
         messagebox.showerror("Error", "Failed to execute the shell script.")
 
@@ -257,6 +322,3 @@ run_button = ttk.Button(root, text="Run Script and Process Raster", command=lamb
 run_button.pack(pady=20)
 
 root.mainloop()
-
-
-

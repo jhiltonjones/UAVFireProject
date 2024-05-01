@@ -6,7 +6,7 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 import pickle
 
 
-data = pd.read_csv('/home/jack/uavMINDS6003/WildFires_DataSet.csv')
+data = pd.read_csv('./data/WildFires_DataSet.csv')
 
 
 label_encoder = LabelEncoder()

@@ -48,7 +48,7 @@ def run_at_random_intervals(min_interval_seconds, max_interval_seconds, filepath
         time.sleep(sleep_time)
 
 if __name__ == "__main__":
-    file_path = '/home/jack/weather_info.txt'  
+    file_path = './out/weather_info.txt'  
     max_interval_seconds = 50
     min_interval_seconds = 45
     run_at_random_intervals(min_interval_seconds, max_interval_seconds, file_path)

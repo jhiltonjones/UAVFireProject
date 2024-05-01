@@ -13,8 +13,8 @@ import math
 from pyproj import Geod
 from pyproj import Transformer
 
-csv_file_path = '/home/jack/elmfire/tutorials/03-real-fuels/outputs/fire_size_stats.csv' 
-dronepositionpath = '/home/jack/drone_coordinates.txt'
+csv_file_path = './models/03-real-fuels/outputs/fire_size_stats.csv' 
+dronepositionpath = './configs/drone_coordinates.txt'
 def readcenterinfo(file_path):
     """
     Read NDVI, LST, burned area, and center coordinates from a file.
@@ -193,8 +193,8 @@ def read_weather_info(file_path):
         return None
 
     return float(ndvi), float(lst), float(burned_area), lon, lat, weather_data
-script_directory = '/home/jack/elmfire/tutorials/03-real-fuels'
-average_fire_spread_tif_pattern = '/home/jack/elmfire/tutorials/03-real-fuels/outputs/vs_0000001*.tif'
+script_directory = './models/03-real-fuels'
+average_fire_spread_tif_pattern = './models/03-real-fuels/outputs/vs_0000001*.tif'
 
 def read_average_fire_spread(average_fire_spread_tif):
     try:
@@ -304,11 +304,11 @@ def display_raster(tif_file_path):
 
 
 def main():
-    script_directory = '/home/jack/elmfire/tutorials/03-real-fuels'
-    script_directory2 = '/home/jack'
+    script_directory = './models/03-real-fuels'
+    script_directory2 = './out/'
     weather_info_path = os.path.join(script_directory2, 'weather_info.txt')
     script_path = os.path.join(script_directory, '01-run.sh')
-    csv_path = '/home/jack/elmfire/tutorials/03-real-fuels/outputs/fire_size_stats.csv'
+    csv_path = './models/03-real-fuels/outputs/fire_size_stats.csv'
 
 
 

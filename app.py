@@ -8,12 +8,12 @@ import sys
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler  
 from flask import request, flash
-app = Flask(__name__)
-app.secret_key = 'jack'
+app = Flask("webpage.html", template_folder = './')
+app.secret_key = '%$6£&^&^HDIO76%^%£"^7'
 
-model = pickle.load(open('/home/jack/model.pkl', 'rb'))
-scaler = pickle.load(open('/home/jack/scaler.pkl', 'rb'))
-label_encoder = pickle.load(open('/home/jack/label_encoder.pkl', 'rb'))
+model = pickle.load(open('./models/model.pkl', 'rb'))
+scaler = pickle.load(open('./models/scaler.pkl', 'rb'))
+label_encoder = pickle.load(open('./models/label_encoder.pkl', 'rb'))
 
 last_run_time = 0  
 prediction_result = None
@@ -27,7 +27,7 @@ class FileWatcher(threading.Thread):
     def run(self):
         observer = Observer()
         self.event_handler = CustomFileSystemEventHandler()
-        observer.schedule(self.event_handler, path='/home/jack/', recursive=False)
+        observer.schedule(self.event_handler, path='./', recursive=False)
         observer.start()
         observer.join()
 
@@ -35,7 +35,7 @@ class CustomFileSystemEventHandler(FileSystemEventHandler):
     def on_modified(self, event):
         global last_run_time, prediction_result
         current_time = time.time()
-        if event.src_path == '/home/jack/weather_info.txt' and (current_time - last_run_time > 45):  
+        if event.src_path == './out/weather_info.txt' and (current_time - last_run_time > 45):   ###########
             print("File changed, triggering prediction.")
             last_run_time = current_time
             prediction_result = self.handle_prediction(event.src_path)
@@ -82,8 +82,8 @@ def perform_prediction(file_path):
         return None, None, None, None
 
 def run_fire_script():
-    try:
-        subprocess.run(['python3', '/home/jack/elmfire/tutorials/Custom/Automated_drone/autofiremap.py'], check=True)
+    try: # TODO: Run it within Python?
+        subprocess.run(['python3', './firemap.py'], check=True)
         app.logger.info("Fire prediction script executed successfully.")
         # sys.exit()
     except subprocess.CalledProcessError as e:
@@ -93,24 +93,25 @@ def run_fire_script():
 def run_script():
     if 'submit_button' in request.form:
         if request.form['submit_button'] == 'Run Drone Clustering':
-            script_path = '/home/jack/elmfire/tutorials/Custom/Automated_drone/droneclustertest.py'
+            script_path = './cluster.py'
         elif request.form['submit_button'] == 'Fire History':
-            script_path = '/home/jack/elmfire/tutorials/Custom/Automated_drone/fire_table.py'    
-            if script_path:
-                try:
-                    subprocess.run(['python3', script_path], check=True)
-                    flash(f"{script_path} executed successfully.", 'success')
-                except subprocess.CalledProcessError as e:
-                    flash(f"Failed to execute the script: {str(e)}", 'error')
-            else:
-                flash("No valid script selected", 'error')
+            script_path = './firetable.py'    
+        
+        if script_path:
+            try:
+                subprocess.run(['python3', script_path], check=True)
+                flash(f"{script_path} executed successfully.", 'success')
+            except subprocess.CalledProcessError as e:
+                flash(f"Failed to execute the script: {str(e)}", 'error')
+        else:
+            flash("No valid script selected", 'error')
             
-    return render_template('new2.html')
+    return render_template('webpage.html')
 
 @app.route('/trigger_prediction')
 
 def trigger_prediction():
-    predicted_class, probability, center_lon, center_lat = perform_prediction('/home/jack/weather_info.txt')
+    predicted_class, probability, center_lon, center_lat = perform_prediction('./out/weather_info.txt')
     if predicted_class is None:
         
         return jsonify({'error': 'Prediction failed'}), 500
@@ -129,7 +130,7 @@ def auto_trigger_prediction():
         trigger_prediction()
 @app.route('/')
 def index():
-    return render_template('new2.html')
+    return render_template('webpage.html')
 
 if __name__ == '__main__':
     watcher_thread = FileWatcher()
@@ -141,5 +142,3 @@ if __name__ == '__main__':
     auto_trigger_thread.start()
 
     app.run(debug=True, use_reloader=False)
-
-

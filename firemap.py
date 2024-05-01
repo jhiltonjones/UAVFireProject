@@ -9,7 +9,8 @@ from datetime import datetime
 import tkinter as tk
 from tkinter import ttk, messagebox
 import csv
-csv_file_path = '/home/jack/elmfire/tutorials/03-real-fuels/outputs/fire_size_stats.csv' 
+
+csv_file_path = './models/03-real-fuels/outputs/fire_size_stats.csv'
 def log_fire_data(csv_path, fire_data):
     """
     Log fire data to a CSV file. If the file doesn't exist, create it and add headers.
@@ -36,7 +37,7 @@ def update_fire_stats(lon, lat, volume, area, spread_rate, priority):
         'Average Spread Rate (unit)': spread_rate,
         'Priority': priority
     }
-    csv_file_path = '/home/jack/fire_log'
+    csv_file_path = './out/fire_log'
     log_fire_data(csv_file_path, fire_data)
 
 def read_csv(file_path):
@@ -109,8 +110,8 @@ def read_weather_info(file_path):
         return None
 
     return float(ndvi), float(lst), float(burned_area), lon, lat, weather_data
-script_directory = '/home/jack/elmfire/tutorials/03-real-fuels'
-average_fire_spread_tif_pattern = '/home/jack/elmfire/tutorials/03-real-fuels/outputs/vs_0000001*.tif'
+script_directory = './models/03-real-fuels'
+average_fire_spread_tif_pattern = './models/03-real-fuels/outputs/vs_0000001*.tif'
 
 def read_average_fire_spread(average_fire_spread_tif):
     try:
@@ -215,11 +216,11 @@ def display_raster(tif_file_path):
 
 
 def main():
-    script_directory = '/home/jack/elmfire/tutorials/03-real-fuels'
-    script_directory2 = '/home/jack'
+    script_directory = './models/03-real-fuels'
+    script_directory2 = './out/'
     weather_info_path = os.path.join(script_directory2, 'weather_info.txt')
     script_path = os.path.join(script_directory, '01-run.sh')
-    csv_path = '/home/jack/elmfire/tutorials/03-real-fuels/outputs/fire_size_stats.csv'
+    csv_path = './models/03-real-fuels/outputs/fire_size_stats.csv'
 
 
 
