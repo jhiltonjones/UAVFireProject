@@ -14,7 +14,7 @@ from pyproj import Transformer
 
 
 script_directory = './models/04-fire-potential'
-script_path = os.path.join(script_directory, '01-run.sh')
+script_path = './01-run.sh'
 wx_csv_path = os.path.join(script_directory, 'wx.csv')
 
 from pyproj import Transformer
