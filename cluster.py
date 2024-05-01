@@ -4,7 +4,7 @@ import subprocess
 import os
 import rasterio
 import matplotlib
-import numpy as np
+import numpy as n
 from concurrent.futures import ThreadPoolExecutor
 import math
 import matplotlib.pyplot as plt
@@ -15,7 +15,6 @@ from pyproj import Transformer
 
 script_directory = './models/04-fire-potential'
 script_path = os.path.join(script_directory, '01-run.sh')
-script_re_path = '01-run.sh'
 wx_csv_path = os.path.join(script_directory, 'wx.csv')
 
 from pyproj import Transformer
@@ -70,12 +69,12 @@ def compute_diff(cumulative_sum, horizontal, vertical, shape):
 
     diff = max(top_left, top_right, bottom_left, bottom_right) - min(top_left, top_right, bottom_left, bottom_right)
     return diff, horizontal, vertical
-def run_shell_script(script_re_path, output_widget):
+def run_shell_script(script_path, output_widget):
     """ Run the shell script to generate the raster data. """
     try:
         display(output_widget, "Running Fire Model...") # TODO: Debug display issue. Probably threading issue
         os.chdir(script_directory)
-        subprocess.run(['bash', script_re_path], check=True)
+        subprocess.run(['bash', script_path], check=True)
         os.chdir("../../")
     except subprocess.CalledProcessError as e:
         print(f"An error occurred while running the shell script: {e}")
@@ -285,9 +284,9 @@ def display(output_widget, text):
     output_widget.insert(tk.END, f"{text}\n")
 
 def execute_and_process(output_widget):
-    global script_re_path
+    global script_path
     # sys.stdout = StdoutRedirector(output_widget) # TODO: Immediately display messages in tkinter instead of redirecting though stdout
-    if run_shell_script(script_re_path, output_widget):
+    if run_shell_script(script_path, output_widget):
         display(output_widget, "Shell script executed successfully.")
         process_raster(output_widget)
     else:
