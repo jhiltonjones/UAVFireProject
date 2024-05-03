@@ -12,9 +12,27 @@ import csv
 import math
 from pyproj import Geod
 from pyproj import Transformer
+import os
+
+
 
 csv_file_path = './models/03-real-fuels/outputs/fire_size_stats.csv' 
 dronepositionpath = './configs/drone_coordinates.txt'
+
+def read_center_info(file_path):
+    """Read center longitude and latitude from a file."""
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+    try:
+        lon_lat = lines[5].strip()  
+        lon = lon_lat.split('--center_lon=')[1].split()[0]
+        lat = lon_lat.split('--center_lat=')[1].split()[0]
+        print(lon, lat)
+    except IndexError as e:
+        print(f"Error parsing longitude/latitude: {e}")
+        return None
+    return float(lon), float(lat)
+
 def readcenterinfo(file_path):
     """
     Read NDVI, LST, burned area, and center coordinates from a file.
@@ -42,7 +60,7 @@ def readcenterinfo(file_path):
     except Exception as e:
         print(f"Error parsing weather info: {e}")
         return None, None
-def convert_utm_to_lat_lon_from_file(filepath, input_crs='epsg:32610', output_crs='epsg:4326'):
+def convert_utm_to_lat_lon_from_file(center_lon, center_lat, filepath, input_crs='epsg:32610', output_crs='epsg:4326'):
 
     with open(filepath, 'r') as file:
         line = file.readline().strip()
@@ -60,6 +78,7 @@ def convert_utm_to_lat_lon_from_file(filepath, input_crs='epsg:32610', output_cr
         lon, lat = transformer.transform(x, y)
         results[pos] = (lon, lat)
     print(results)
+    results['Center'] = (center_lon, center_lat)
 
     return results
 
@@ -177,7 +196,7 @@ def get_first_matching_file(pattern):
     return None
 
 
-def read_weather_info(file_path):
+def read_weather_info(file_path='out/weather_info.txt'):
     with open(file_path, 'r') as file:
         lines = file.readlines()
         ndvi, lst, burned_area = lines[0].strip().split()
@@ -285,7 +304,7 @@ def modify_wx_csv(csv_path, weather_data):
         file.writelines(weather_data)
 
 def run_script(script_path):
-    subprocess.run(['bash', script_path], check=True, cwd=script_directory)
+    subprocess.run(['bash', script_path], check=True)
 
 def display_raster(tif_file_path):
     with rasterio.open(tif_file_path) as src:
@@ -304,12 +323,11 @@ def display_raster(tif_file_path):
 
 
 def main():
-    script_directory = './models/03-real-fuels'
-    script_directory2 = './out/'
-    weather_info_path = os.path.join(script_directory2, 'weather_info.txt')
-    script_path = os.path.join(script_directory, '01-run.sh')
-    csv_path = './models/03-real-fuels/outputs/fire_size_stats.csv'
-
+    script_directory = ('models/03-real-fuels')
+    weather_info_path = ('out/weather_info.txt')
+    script_path = ('models/03-real-fuels/01-run.sh')
+    csv_path = ('models/03-real-fuels/outputs/fire_size_stats.csv')
+    weather_write_path = ('models/03-real-fuels/wx.csv')
 
 
     result = read_weather_info(weather_info_path)
@@ -317,15 +335,16 @@ def main():
         ndvi, lst, burned_area, lon, lat, weather_data = result
         print(f"NDVI: {ndvi}, LST: {lst}, Burned Area: {burned_area}")
         modify_bash_script(script_path, lon, lat)
+        modify_wx_csv(weather_write_path, weather_data)
         run_script(script_path)
         
         average_fire_spread_tif = get_first_matching_file(average_fire_spread_tif_pattern)
         print(average_fire_spread_tif)
-
+        center_lon, center_lat = read_center_info(file_path = './models/04-fire-potential/01-run.sh')
         tif_file_pattern = os.path.join(script_directory, 'outputs', 'time_of_arrival*.tif')
         tif_file_path = get_first_matching_file(tif_file_pattern)
         average_spread = read_average_fire_spread(average_fire_spread_tif)
-        converted_coords = convert_utm_to_lat_lon_from_file(dronepositionpath)
+        converted_coords = convert_utm_to_lat_lon_from_file(center_lon, center_lat, dronepositionpath)
         # cen_lon, cen_lat = readcenterinfo(file_path = '/home/jack/elmfire/tutorials/04-fire-potential/01-run.sh')
         fastest_drone, travel_time = calculate_drone_travel_time(lon, lat, converted_coords)
         if average_spread > 150:

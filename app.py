@@ -27,7 +27,7 @@ class FileWatcher(threading.Thread):
     def run(self):
         observer = Observer()
         self.event_handler = CustomFileSystemEventHandler()
-        observer.schedule(self.event_handler, path='./', recursive=False)
+        observer.schedule(self.event_handler, path='./out', recursive=False)
         observer.start()
         observer.join()
 
@@ -35,7 +35,7 @@ class CustomFileSystemEventHandler(FileSystemEventHandler):
     def on_modified(self, event):
         global last_run_time, prediction_result
         current_time = time.time()
-        if event.src_path == './out/weather_info.txt' and (current_time - last_run_time > 45):   ###########
+        if event.src_path == './out/weather_info.txt' and (current_time - last_run_time > 30):   ###########
             print("File changed, triggering prediction.")
             last_run_time = current_time
             prediction_result = self.handle_prediction(event.src_path)
@@ -50,7 +50,7 @@ class CustomFileSystemEventHandler(FileSystemEventHandler):
                 
                 app.logger.info(f"Prediction and Confidence: {result}, {probability:.2%}")
                 app.logger.info(f"Location of ignition - Longitude: {lon}, Latitude: {lat}")
-                last_lon = lon  
+        last_lon = lon  
         
         return {
             'prediction': result,
@@ -83,7 +83,7 @@ def perform_prediction(file_path):
 
 def run_fire_script():
     try: # TODO: Run it within Python?
-        subprocess.run(['python3', './firemap.py'], check=True)
+        subprocess.run(['python3', 'firedata.py'], check=True)
         app.logger.info("Fire prediction script executed successfully.")
         # sys.exit()
     except subprocess.CalledProcessError as e:
@@ -111,16 +111,16 @@ def run_script():
 @app.route('/trigger_prediction')
 
 def trigger_prediction():
-    predicted_class, probability, center_lon, center_lat = perform_prediction('./out/weather_info.txt')
-    if predicted_class is None:
-        
-        return jsonify({'error': 'Prediction failed'}), 500
-    return jsonify({
-        'prediction': predicted_class,
-        'probability': probability,
-        'lon': center_lon,
-        'lat': center_lat
-    })
+    with app.app_context():  
+        predicted_class, probability, center_lon, center_lat = perform_prediction('/home/jack/weather_info.txt')
+        if predicted_class is None:
+            return jsonify({'error': 'Prediction failed'}), 500
+        return jsonify({
+            'prediction': predicted_class,
+            'probability': probability,
+            'lon': center_lon,
+            'lat': center_lat
+        })
 
 def auto_trigger_prediction():
     while True:

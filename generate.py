@@ -40,7 +40,7 @@ def generate_random_coordinate(lon, lat):
 def generate_random_weather_data(filepath, file_path, weather_path):
     
     weather_data = read_weather_info(weather_path)
-    lon, lat = read_center_info(file_path='/home/jack/elmfire/tutorials/Custom/Automated_drone/04-fire-potential/01-run.sh')
+    lon, lat = read_center_info(file_path='models/04-fire-potential/01-run.sh')
     random_lon, random_lat = generate_random_coordinate(lon, lat)
     if lon is None or lat is None:
         return
@@ -71,9 +71,9 @@ def read_weather_info(weather_path):
 
     return weather_data
 if __name__ == "__main__":
-    filepath = '/home/jack/weather_info.txt'
-    file_path = '/home/jack/elmfire/tutorials/04-fire-potential/01-run.sh'
-    weather_path = '/home/jack/elmfire/tutorials/04-fire-potential/wx.csv'
-    max_interval_seconds = 55
-    min_interval_seconds = 50
+    filepath = 'out/weather_info.txt'
+    file_path = 'models/04-fire-potential/01-run.sh'
+    weather_path = 'models/04-fire-potential/wx.csv'
+    max_interval_seconds = 50
+    min_interval_seconds = 45
     run_at_random_intervals(min_interval_seconds, max_interval_seconds, filepath, file_path, weather_path)

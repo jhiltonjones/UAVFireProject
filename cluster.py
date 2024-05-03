@@ -1,4 +1,5 @@
 import tkinter as tk
+import numpy as np
 from tkinter import ttk, messagebox, scrolledtext
 import subprocess
 import os
@@ -17,8 +18,6 @@ script_directory = './models/04-fire-potential'
 script_path = os.path.join(script_directory, '01-run.sh')
 script_filename = './01-run.sh'
 wx_csv_path = os.path.join(script_directory, 'wx.csv')
-
-from pyproj import Transformer
 
 def convert_utm_to_lat_lon_from_file(filepath, input_crs='epsg:32610', output_crs='epsg:4326'):
     """
@@ -76,7 +75,7 @@ def run_shell_script(script_filename, output_widget):
     try:
         display(output_widget, "Running Fire Model...") # TODO: Debug display issue. Probably threading issue
         os.chdir(script_directory)
-        subprocess.run(['bash', script_filename], check=True)
+        # subprocess.run(['bash', script_filename], check=True)
         os.chdir("../../")
     except subprocess.CalledProcessError as e:
         print(f"An error occurred while running the shell script: {e}")
@@ -95,7 +94,8 @@ def generate_coordinates(filepath, geo_mid_top_left, geo_mid_top_right, geo_mid_
 #         messagebox.showerror("Error", "Failed to execute the shell script.")
 def process_raster(output_widget):
     with rasterio.open('./models/04-fire-potential/outputs/head_fire_spread_rate_006.tif') as src:
-        display(output_widget, "Raster accessed")
+        # display(output_widget, "Raster accessed")
+        print("Raster accessed")
         band1 = src.read(1)  
         nodata = src.nodata
         mask = band1 == nodata
@@ -110,13 +110,15 @@ def process_raster(output_widget):
 
         min_diff = np.inf
         optimal_horizontal, optimal_vertical = None, None
-        display(output_widget, "Starting raster procssing...")
-
+        # display(output_widget, "Starting raster procssing...")
+        print("Starting raster processing")
+        sampling_rate = 10
         with ThreadPoolExecutor() as executor:
             futures = []
-            for vertical in range(1, band1_masked.shape[1] - 1):
-                for horizontal in range(1, band1_masked.shape[0] - 1):
-                    futures.append(executor.submit(compute_diff, cumulative_sum, horizontal, vertical, band1_masked.shape))
+            for vertical in range(0, band1_masked.shape[1], sampling_rate):
+                for horizontal in range(0, band1_masked.shape[0], sampling_rate):
+                    if not mask[horizontal, vertical]:  
+                        futures.append(executor.submit(compute_diff, cumulative_sum, horizontal, vertical, band1_masked.shape))
 
             for future in futures:
                 diff, horizontal, vertical = future.result()
@@ -124,9 +126,6 @@ def process_raster(output_widget):
                     min_diff = diff
                     optimal_horizontal = horizontal
                     optimal_vertical = vertical
-
-        # print(f"Optimal horizontal line at: {optimal_horizontal}")
-        # print(f"Optimal vertical line at: {optimal_vertical}")
 
 
         mid_top_left = (top + optimal_horizontal) // 2, (left + optimal_vertical) // 2
@@ -212,7 +211,7 @@ def process_raster(output_widget):
         display(output_widget, f"Detection Drone 2 go to coordinates: {top_right_top_right}")
         display(output_widget, f"Detection Drone 3 go to coordinates: {top_right_bottom_left}")
         display(output_widget, f"Detection Drone 4 go to coordinates: {top_right_bottom_right}")
-        plt.imshow(band1_masked, cmap='coolwarm')
+        plt.imshow(band1_masked, cmap='viridis')
         plt.axhline(y=optimal_horizontal, color='k', linestyle='-', linewidth=line_width)
         plt.axvline(x=optimal_vertical, color='k', linestyle='-', linewidth=line_width)
         plt.scatter([mid[1] for mid in [mid_top_left, mid_top_right, mid_bottom_left, mid_bottom_right]], 
@@ -221,7 +220,7 @@ def process_raster(output_widget):
         plt.scatter([tr[1] for tr in [top_right_top_left, top_right_top_right, top_right_bottom_left, top_right_bottom_right]], 
                     [tr[0] for tr in [top_right_top_left, top_right_top_right, top_right_bottom_left, top_right_bottom_right]], 
                     color='red', s=50)
-        plt.colorbar(label='Risk Level', cmap='coolwarm')
+        plt.colorbar(label='Risk Level', cmap='viridis')
         plt.title('Fire Spread Risk with Optimal Split Lines')
         plt.show()
     messagebox.showinfo("Success", "Raster processed successfully.")
