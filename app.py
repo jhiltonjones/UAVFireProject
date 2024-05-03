@@ -112,7 +112,7 @@ def run_script():
 
 def trigger_prediction():
     with app.app_context():  
-        predicted_class, probability, center_lon, center_lat = perform_prediction('/home/jack/weather_info.txt')
+        predicted_class, probability, center_lon, center_lat = perform_prediction('out/weather_info.txt')
         if predicted_class is None:
             return jsonify({'error': 'Prediction failed'}), 500
         return jsonify({

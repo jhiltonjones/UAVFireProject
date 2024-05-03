@@ -303,8 +303,21 @@ def modify_wx_csv(csv_path, weather_data):
         file.write('ws\twd\tm1\tm10\tm100\tlh\tlw\n')
         file.writelines(weather_data)
 
-def run_script(script_path):
-    subprocess.run(['bash', script_path], check=True)
+import os
+import subprocess
+
+def run_script(script_name):
+    script_directory = os.path.join(os.getcwd(), 'models', '03-real-fuels')
+    script_path = os.path.join(script_directory, script_name)
+    print("Running script at:", script_path)  # Debugging output
+    try:
+        subprocess.run(['bash', script_path], check=True, cwd=script_directory)
+        print("Script executed successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"Script failed with return code {e.returncode}")
+    except Exception as e:
+        print(f"Failed to run script: {str(e)}")
+
 
 def display_raster(tif_file_path):
     with rasterio.open(tif_file_path) as src:
@@ -323,11 +336,11 @@ def display_raster(tif_file_path):
 
 
 def main():
-    script_directory = ('models/03-real-fuels')
+    script_directory = 'models/03-real-fuels'
     weather_info_path = ('out/weather_info.txt')
-    script_path = ('models/03-real-fuels/01-run.sh')
-    csv_path = ('models/03-real-fuels/outputs/fire_size_stats.csv')
-    weather_write_path = ('models/03-real-fuels/wx.csv')
+    script_path = os.path.join(script_directory, '01-run.sh')
+    print("Full script path:", script_path)
+    csv_path = './models/03-real-fuels/outputs/fire_size_stats.csv'
 
 
     result = read_weather_info(weather_info_path)
@@ -335,8 +348,9 @@ def main():
         ndvi, lst, burned_area, lon, lat, weather_data = result
         print(f"NDVI: {ndvi}, LST: {lst}, Burned Area: {burned_area}")
         modify_bash_script(script_path, lon, lat)
-        modify_wx_csv(weather_write_path, weather_data)
-        run_script(script_path)
+        # modify_wx_csv(weather_write_path, weather_data)
+        
+        run_script('01-run.sh')
         
         average_fire_spread_tif = get_first_matching_file(average_fire_spread_tif_pattern)
         print(average_fire_spread_tif)
