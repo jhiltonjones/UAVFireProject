@@ -35,7 +35,7 @@ class CustomFileSystemEventHandler(FileSystemEventHandler):
     def on_modified(self, event):
         global last_run_time, prediction_result
         current_time = time.time()
-        if event.src_path == './out/weather_info.txt' and (current_time - last_run_time > 30):   ###########
+        if event.src_path == './out/weather_info.txt' and (current_time - last_run_time > 2):   ###########
             print("File changed, triggering prediction.")
             last_run_time = current_time
             prediction_result = self.handle_prediction(event.src_path)
@@ -95,7 +95,9 @@ def run_script():
         if request.form['submit_button'] == 'Run Drone Clustering':
             script_path = './cluster.py'
         elif request.form['submit_button'] == 'Fire History':
-            script_path = './firetable.py'    
+            script_path = './firetable.py'  
+        elif request.form['submit_button'] == 'Generate Data':
+            script_path = './generate.py'   
         
         if script_path:
             try:

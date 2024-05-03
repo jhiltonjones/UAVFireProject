@@ -61,9 +61,10 @@ def run_at_random_intervals(min_interval_seconds, max_interval_seconds, filepath
     """Run data generation at random intervals."""
     while True:
         generate_random_weather_data(filepath, file_path, weather_path)
-        sleep_time = random.randint(min_interval_seconds, max_interval_seconds)
-        print(f"Sleeping for {sleep_time} seconds...")
-        time.sleep(sleep_time)
+        # sleep_time = random.randint(min_interval_seconds, max_interval_seconds)
+        # print(f"Sleeping for {sleep_time} seconds...")
+        # time.sleep(sleep_time)
+        exit()
 def read_weather_info(weather_path):
     with open(weather_path, 'r') as file:
         lines = file.readlines()
