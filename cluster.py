@@ -4,7 +4,7 @@ import subprocess
 import os
 import rasterio
 import matplotlib
-import numpy as n
+import numpy as np
 from concurrent.futures import ThreadPoolExecutor
 import math
 import matplotlib.pyplot as plt
