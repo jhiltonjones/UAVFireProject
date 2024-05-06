@@ -8,22 +8,22 @@ num_agents = 1
 start_pos = [(340, 340)]
 init_fire = (350, 350)
 
+count_agent = 30
+
 agents = []
 
 current_mitigation = 'fireline'
+
+realtime = None
+count_min = 0
 
 class custom_sim(FireSimulation):
     def __init__(self, *args, **kwargs):
         super(custom_sim, self).__init__(*args, **kwargs)
 
-    def run_mitigation(self, time):
-        self.fire_sprites = self.fire_manager.sprites
-
+    def run_mitigation(self):
         if self._rendering:
             self._render()
-        
-        if self.config.simulation.save_data:
-            self._save_data()
 
 def run(sim):
     global agents, start_pos
@@ -35,10 +35,11 @@ def run(sim):
 
     sim.update_agent_positions(agents)
 
-    sim.run_mitigation(1)
+    sim.run_mitigation()
 
 def move(sim, x, y):
-    global agents, current_mitigation
+    global agents, current_mitigation, realtime, count_min, count_agent
+    
     agents_move = []
     mitigations = []
 
@@ -54,7 +55,14 @@ def move(sim, x, y):
 
     sim.update_mitigation(mitigations)
     
-    sim.run_mitigation(1)
+    sim.run_mitigation()
+    
+    if (realtime.get()):
+        count_min += count_agent
+        if (count_min >= 60):
+            print(count_min)
+            count_min = 0
+            sim.run(1)
 
 def close(sim):
     sim.rendering = False
@@ -63,8 +71,22 @@ def save(sim):
     sim.save_gif('./out/simfire/out.gif')
     # sim.save_spread_graph('./out/simfire/graph.png')
 
+def disable(button):
+    global count_min, realtime
+    
+    count_min = 0
+    if button["state"] == "disabled":
+        button["state"] = "normal"
+    elif button["state"] == "normal":
+        button["state"] = "disabled"
+    
+    print(realtime.get())
+
+def spread(sim):
+    sim.run(1)
+
 def controls():
-    global root, speed
+    global root, speed, realtime
     root.destroy()
     root = tk.Tk()
     root.title("Controls")
@@ -76,8 +98,16 @@ def controls():
     run_button = tk.Button(root, text="Run", command=lambda: run(sim))
     run_button.pack(pady=5)
 
-    fire_button = tk.Button(root, text="Spread", command=lambda: sim.run(1))
-    fire_button.pack(pady=5)
+    real_time_frame = tk.Frame(root)
+    real_time_frame.pack(padx=5, pady=5)
+
+    realtime = tk.BooleanVar()
+    fire_button = tk.Button(real_time_frame, text="Spread", command=lambda: spread(sim))
+    real_time_check = tk.Checkbutton(real_time_frame, text="Real-time", onvalue=True, offvalue=False, variable=realtime, command=lambda: disable(fire_button))# tk.Checkbutton()
+
+    real_time_check.grid(row=0, column=0)
+    fire_button.grid(row=0, column=1)
+    
 
     # Directions
     buttons = tk.Frame(root)
@@ -119,11 +149,15 @@ def controls():
     save_button = tk.Button(bot_bottons, text="Save", command=lambda: save(sim))
     save_button.grid(row=0, column=1)
 
+    # print("hello_world")
+
 
 root = tk.Tk()
 root.title("Practice Tool")
 
 tk.Label(text="Welcome to Practice Tool! Please set-up the settings below:").pack()
+
+# TODO: Add settings
 
 run_button = tk.Button(root, text="Start", command=lambda: controls())
 run_button.pack()
