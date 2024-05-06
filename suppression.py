@@ -3,12 +3,16 @@ from simfire.sim.simulation import FireSimulation
 from simfire.utils.config import Config
 
 config_path = './configs/model_configs.yml'
-speed = 1
+
+# Speed: ~52.30024 km/h # TODO: Auto unit converter
+speed = 2 # Pixels = ~30 meters
+agent_timesteps = 5 # Seconds
+
 num_agents = 1
 start_pos = [(340, 340)]
 init_fire = (350, 350)
 
-count_agent = 30
+
 
 agents = []
 
@@ -34,21 +38,39 @@ def run(sim):
         agents.append(agent)
 
     sim.update_agent_positions(agents)
-
     sim.run_mitigation()
 
+def sign(x):
+    if x == 0:
+        return 0
+    elif x < 0:
+        return -1
+    else:
+        return 1
+    
+def mitigate(agent, sim, x, y, current_mitigation):
+    global speed
+
+    mitigations = []
+    for i in range(1, speed + 1):
+        mitigation = (agent[0] + (i * sign(x)), agent[1] + (i * sign(y)), sim.get_actions()[current_mitigation])
+        mitigations.append(mitigation)
+    
+    return mitigations
+
 def move(sim, x, y):
-    global agents, current_mitigation, realtime, count_min, count_agent
+    global agents, current_mitigation, realtime, count_min, agent_timesteps
     
     agents_move = []
     mitigations = []
 
     for agent in agents:
+        mitigations += mitigate(agent, sim, x, y, current_mitigation)
         agent = (agent[0] + x, agent[1] + y, agent[2])
         agents_move.append(agent)
-
-        mitigation = (agent[0], agent[1], sim.get_actions()[current_mitigation])
-        mitigations.append(mitigation)
+        print(mitigations)
+        print(agent)
+        
 
     agents = agents_move
     sim.update_agent_positions(agents)
@@ -58,7 +80,7 @@ def move(sim, x, y):
     sim.run_mitigation()
     
     if (realtime.get()):
-        count_min += count_agent
+        count_min += agent_timesteps
         if (count_min >= 60):
             print(count_min)
             count_min = 0
@@ -73,7 +95,7 @@ def save(sim):
 
 def disable(button):
     global count_min, realtime
-    
+
     count_min = 0
     if button["state"] == "disabled":
         button["state"] = "normal"
@@ -148,8 +170,6 @@ def controls():
 
     save_button = tk.Button(bot_bottons, text="Save", command=lambda: save(sim))
     save_button.grid(row=0, column=1)
-
-    # print("hello_world")
 
 
 root = tk.Tk()
