@@ -16,7 +16,7 @@ init_fire = (350, 350)
 
 agents = []
 
-current_mitigation = 'fireline'
+current_mitigation = None
 
 realtime = None
 count_min = 0
@@ -65,17 +65,17 @@ def move(sim, x, y):
     mitigations = []
 
     for agent in agents:
-        mitigations += mitigate(agent, sim, x, y, current_mitigation)
+        if current_mitigation:
+            mitigations += mitigate(agent, sim, x, y, current_mitigation)
         agent = (agent[0] + x, agent[1] + y, agent[2])
         agents_move.append(agent)
-        print(mitigations)
-        print(agent)
         
 
     agents = agents_move
     sim.update_agent_positions(agents)
 
-    sim.update_mitigation(mitigations)
+    if current_mitigation:
+        sim.update_mitigation(mitigations)
     
     sim.run_mitigation()
     
@@ -91,11 +91,9 @@ def close(sim):
 
 def save(sim):
     sim.save_gif('./out/simfire/out.gif')
-    # sim.save_spread_graph('./out/simfire/graph.png')
 
 def disable(button):
     global count_min, realtime
-
     count_min = 0
     if button["state"] == "disabled":
         button["state"] = "normal"
@@ -106,6 +104,16 @@ def disable(button):
 
 def spread(sim):
     sim.run(1)
+
+def reset_buttons(buttons):
+    for button in buttons:
+        button["state"] = "normal"
+
+def set_mitigation(mitigation, button, buttons):
+    global current_mitigation
+    reset_buttons(buttons)
+    button["state"] = "disabled"
+    current_mitigation = mitigation
 
 def controls():
     global root, speed, realtime
@@ -130,9 +138,10 @@ def controls():
     real_time_check.grid(row=0, column=0)
     fire_button.grid(row=0, column=1)
     
-
+    mid_frame = tk.Frame(root)
+    mid_frame.pack(padx=5, pady=5)
     # Directions
-    buttons = tk.Frame(root)
+    buttons = tk.Frame(mid_frame)
     buttons.pack(padx=5, pady=5)
 
     up_button = tk.Button(buttons, text="N", command=lambda: move(sim, 0, -speed))
@@ -159,7 +168,27 @@ def controls():
     se_button = tk.Button(buttons, text="SE", command=lambda: move(sim, speed, speed))
     se_button.grid(row=2, column=2)
 
-    # TODO: Mitigations Buttons
+    # Mitigations Buttons
+    mitigation_buttons = tk.Frame(mid_frame)
+    mitigation_buttons.pack(padx=5, pady=5)
+
+    buttons_list = []
+
+    none_button = tk.Button(mitigation_buttons, text="None", command=lambda: set_mitigation(None, none_button, buttons_list))
+    none_button.grid(row=0, column=0)
+
+    none_button["state"] = "disabled"
+
+    fl_button = tk.Button(mitigation_buttons, text="Fireline", command=lambda: set_mitigation('fireline', fl_button, buttons_list))
+    fl_button.grid(row=1, column=0)
+
+    wl_button = tk.Button(mitigation_buttons, text="Wetline", command=lambda: set_mitigation('wetline', wl_button, buttons_list))
+    wl_button.grid(row=2, column=0)
+
+    sl_button = tk.Button(mitigation_buttons, text="Scratchline", command=lambda: set_mitigation('scratchline', sl_button, buttons_list))
+    sl_button.grid(row=3, column=0)
+
+    buttons_list = [none_button, fl_button, wl_button, sl_button]
 
     # Additional Buttons
     bot_bottons = tk.Frame(root)
