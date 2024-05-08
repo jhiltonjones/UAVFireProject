@@ -112,7 +112,7 @@ def log_fire_data(csv_path, fire_data):
     """
     Log fire data to a CSV file. If the file doesn't exist, create it and add headers.
     """
-    fieldnames = ['Date', 'Longitude', 'Latitude', 'Fire Volume (ac-ft)', 'Total Fire Area (ac)', 'Average Spread Rate (unit)', 'Priority', 'Nearest Drone', 'Travel Time']
+    fieldnames = ['Date', 'Longitude', 'Latitude', 'Fire Volume (ac-ft)', 'Total Fire Area (ac)', 'Average Spread Rate (unit)', 'Priority', 'Nearest Drone', 'Travel Time', 'Circumference', 'Drone Suppressant Time']
     file_exists = os.path.isfile(csv_path)
     with open(csv_path, 'a', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -121,7 +121,7 @@ def log_fire_data(csv_path, fire_data):
         writer.writerow(fire_data)
 
 
-def update_fire_stats(lon, lat, volume, area, spread_rate, priority, fastest_drone, travel_time):
+def update_fire_stats(lon, lat, volume, area, spread_rate, priority, fastest_drone, travel_time, optimal_circumference, drone_suppressant_time):
     """
     Prepare fire data and log it.
     """
@@ -134,9 +134,12 @@ def update_fire_stats(lon, lat, volume, area, spread_rate, priority, fastest_dro
         'Average Spread Rate (unit)': spread_rate,
         'Priority': priority,
         'Nearest Drone': fastest_drone,
-        'Travel Time': travel_time
+        'Travel Time': travel_time,
+        'Circumference': optimal_circumference,
+        'Drone Suppressant Time': drone_suppressant_time
+
     }
-    csv_file_path = '/home/jack/fire_log'
+    csv_file_path = 'out/fire_log3'
     log_fire_data(csv_file_path, fire_data)
 
 def read_csv(file_path):
@@ -151,7 +154,9 @@ def read_csv(file_path):
                     'Average Spread Rate': row.get('Average Spread Rate (unit)', 'N/A'),
                     'Priority of Fire': row.get('Priority', 'N/A'),
                     'Nearest Drone': row.get('Nearest Drone', 'N/A'),
-                    'Travel Time': row.get('Travel Time', 'N/A')
+                    'Travel Time': row.get('Travel Time', 'N/A'),
+                    'Circumference': row.get('Circumference', 'N/A'),
+                    'Drone Suppressant Time': row.get('Drone Suppressant Time', 'N/A')
 
                 }
                 data.append(extracted_data)
@@ -227,7 +232,7 @@ def read_average_fire_spread(average_fire_spread_tif):
     except Exception as e:
         print("Error", f"Failed to read raster file: {str(e)}")
         return None
-def update_csv_with_average(csv_path, average_spread, priority, fastest_drone, travel_time):
+def update_csv_with_average(csv_path, average_spread, priority, fastest_drone, travel_time, optimal_circumference, drone_suppressant_time):
     try:
 
         with open(csv_path, newline='') as csvfile:
@@ -245,11 +250,17 @@ def update_csv_with_average(csv_path, average_spread, priority, fastest_drone, t
             fieldnames.append('Nearest Drone')
         if 'Travel Time' not in fieldnames:
             fieldnames.append('Travel Time')
+        if 'Circumference' not in fieldnames:
+            fieldnames.append('Circumference')
+        if 'Drone Suppressant Time' not in fieldnames:
+            fieldnames.append('Drone Suppressant Time')
         for row in rows:
             row['Average Spread Rate (unit)'] = average_spread
             row['Priority'] = priority
             row['Nearest Drone'] = fastest_drone
             row['Travel Time'] = travel_time
+            row ['Circumference'] = optimal_circumference
+            row ['Drone Suppressant Time'] = drone_suppressant_time
 
 
         with open(csv_path, 'w', newline='') as csvfile:
@@ -260,7 +271,7 @@ def update_csv_with_average(csv_path, average_spread, priority, fastest_drone, t
     except Exception as e:
         print(f"Failed to update CSV: {e}")
 
-def modify_bash_script(script_path, lon, lat):
+def modify_bash_script(script_path, lon, lat, travel_time):
     try:
         with open(script_path, 'r') as file:
             lines = file.readlines()
@@ -275,27 +286,17 @@ def modify_bash_script(script_path, lon, lat):
                         parts[i] = f"--center_lon={lon}"
                     elif part.startswith('--center_lat'):
                         parts[i] = f"--center_lat={lat}"
-                
                 line = ' '.join(parts) + '\n'
+            elif 'SIMULATION_TSTOP' in line:
+                travel_time_round = round(travel_time*60)
+                line = f"SIMULATION_TSTOP={travel_time_round}\n"
+           
             new_lines.append(line)  
 
         with open(script_path, 'w') as file:
             file.writelines(new_lines)
     except Exception as e:
         print(f"Error modifying bash script: {e}")
-
-
-
-def display_raster(tif_file_path):
-    try:
-        with rasterio.open(tif_file_path) as src:
-            band = src.read(1)
-            plt.imshow(band, cmap='gray_r')
-            plt.colorbar()
-            plt.title('Raster Image')
-            plt.show()
-    except Exception as e:
-        print(f"Error displaying raster: {e}")
 
 
 def modify_wx_csv(csv_path, weather_data):
@@ -335,6 +336,41 @@ def display_raster(tif_file_path):
         plt.show()
 
 
+def find_minimal_effective_circle(fire_area, spread_rate, drone_speed=60):
+    """Find the minimal effective circle the drone can circle, adjusting for fire spread.
+
+    Args:
+    fire_area (float): Initial fire area in square kilometers.
+    spread_rate (float): Rate of spread of the fire in feet per minute.
+    drone_speed (float): Speed of the drone in km/h.
+
+    Returns:
+    float: Optimal circumference in km that allows the drone to complete its round.
+    """
+    fire_area_km = fire_area * 0.00404686
+    spread_rate_km_s = spread_rate * 0.0003048 / 60 / 60
+
+    initial_radius = math.sqrt(fire_area_km / math.pi)
+    increment = 0.01  
+
+    radius = initial_radius + 0.001  
+    while True:
+        circumference = 2 * math.pi * radius
+        drone_time_to_cover = circumference / (drone_speed / 3600)  
+
+        additional_area = spread_rate_km_s * drone_time_to_cover
+        new_fire_area = math.pi * radius ** 2 + additional_area
+        new_radius = math.sqrt(new_fire_area / math.pi)
+
+        if new_radius > radius:
+            break
+
+        radius -= increment
+
+    final_circumference = 2 * math.pi * radius
+    final_drone_time_to_cover = final_circumference / (drone_speed / 3600)
+    return final_circumference, final_drone_time_to_cover
+    
 def main():
     script_directory = 'models/03-real-fuels'
     weather_info_path = ('out/weather_info.txt')
@@ -347,20 +383,28 @@ def main():
     if result:
         ndvi, lst, burned_area, lon, lat, weather_data = result
         print(f"NDVI: {ndvi}, LST: {lst}, Burned Area: {burned_area}")
-        modify_bash_script(script_path, lon, lat)
+        center_lon, center_lat = read_center_info(file_path = './models/04-fire-potential/01-run.sh')
+        converted_coords = convert_utm_to_lat_lon_from_file(center_lon, center_lat, dronepositionpath)
+        # cen_lon, cen_lat = readcenterinfo(file_path = '/home/jack/elmfire/tutorials/04-fire-potential/01-run.sh')
+        fastest_drone, travel_time = calculate_drone_travel_time(lon, lat, converted_coords)
+        print(travel_time)
+        modify_bash_script(script_path, lon, lat, travel_time)
         # modify_wx_csv(weather_write_path, weather_data)
         
         run_script('01-run.sh')
         
         average_fire_spread_tif = get_first_matching_file(average_fire_spread_tif_pattern)
         print(average_fire_spread_tif)
-        center_lon, center_lat = read_center_info(file_path = './models/04-fire-potential/01-run.sh')
         tif_file_pattern = os.path.join(script_directory, 'outputs', 'time_of_arrival*.tif')
         tif_file_path = get_first_matching_file(tif_file_pattern)
         average_spread = read_average_fire_spread(average_fire_spread_tif)
-        converted_coords = convert_utm_to_lat_lon_from_file(center_lon, center_lat, dronepositionpath)
-        # cen_lon, cen_lat = readcenterinfo(file_path = '/home/jack/elmfire/tutorials/04-fire-potential/01-run.sh')
-        fastest_drone, travel_time = calculate_drone_travel_time(lon, lat, converted_coords)
+        round_average_spread = round(average_spread,2)
+        csv_data = read_csv(csv_path)
+        for data in csv_data:
+                fire_area = float(data['Total Fire Area (ac)'])
+        print(fire_area, round_average_spread)
+        optimal_circumference, drone_suppressant_time = find_minimal_effective_circle(fire_area, round_average_spread)
+        print(optimal_circumference, drone_suppressant_time)
         if average_spread > 150:
             priority = 5
         elif average_spread > 100:
@@ -371,10 +415,10 @@ def main():
             priority = 2
         else:
             priority = 1
-        update_csv_with_average(csv_path, average_spread, priority, fastest_drone, travel_time)
-        csv_data = read_csv(csv_path)
+        update_csv_with_average(csv_path, average_spread, priority, fastest_drone, travel_time, optimal_circumference, drone_suppressant_time)
+        
         if csv_data:
-            create_gui(csv_data)
+            
             csv_data = read_csv(csv_file_path)
         if csv_data:
             for data in csv_data:
@@ -384,9 +428,11 @@ def main():
                 priority = data['Priority of Fire']
                 fastest_drone = data['Nearest Drone']
                 travel_time = data['Travel Time']
+                optimal_circumference = data['Circumference']
+                drone_suppressant_time = data['Drone Suppressant Time']
                 
-                update_fire_stats(lon, lat, fire_volume, fire_area, average_spread, priority, fastest_drone, travel_time)
-
+                update_fire_stats(lon, lat, fire_volume, fire_area, average_spread, priority, fastest_drone, travel_time, optimal_circumference, drone_suppressant_time)
+        create_gui(csv_data)
         
         display_raster(tif_file_path)
        

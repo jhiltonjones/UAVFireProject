@@ -18,24 +18,27 @@ import random
 import math
 
 def generate_random_coordinate(lon, lat):
-    R = 6371.0
+    while True:
+        R = 6371.0
 
-    random_radius = random.uniform(0, 18)
+        random_radius = random.uniform(0, 25)
 
-    random_angle = random.uniform(0, 2 * math.pi)
+        random_angle = random.uniform(0, 2 * math.pi)
 
-    radius_in_degrees = random_radius / R
+        radius_in_degrees = random_radius / R
 
-    delta_lat = radius_in_degrees * math.cos(random_angle)
-    delta_lon = radius_in_degrees * math.sin(random_angle) / math.cos(math.radians(lat))
+        delta_lat = radius_in_degrees * math.cos(random_angle)
+        delta_lon = radius_in_degrees * math.sin(random_angle) / math.cos(math.radians(lat))
 
-    random_lat = lat + delta_lat * (180 / math.pi)
-    random_lon = lon + delta_lon * (180 / math.pi)
+        random_lat = lat + delta_lat * (180 / math.pi)
+        random_lon = lon + delta_lon * (180 / math.pi)
 
-    random_lon = round(random_lon, 2)
-    random_lat = round(random_lat, 2)
-
-    return random_lon, random_lat
+        random_lon_round = round(random_lon, 2)
+        random_lat_round = round(random_lat, 2)
+        print(random_lat_round, random_lon_round)
+        if random_lon_round and random_lon_round != lon and lat:
+            break
+    return random_lon_round, random_lat_round
 
 def generate_random_weather_data(filepath, file_path, weather_path):
     
