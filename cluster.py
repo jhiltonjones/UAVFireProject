@@ -75,7 +75,7 @@ def run_shell_script(script_filename, output_widget):
     try:
         display(output_widget, "Running Fire Model...") # TODO: Debug display issue. Probably threading issue
         os.chdir(script_directory)
-        # subprocess.run(['bash', script_filename], check=True)
+        subprocess.run(['bash', script_filename], check=True)
         os.chdir("../../")
     except subprocess.CalledProcessError as e:
         print(f"An error occurred while running the shell script: {e}")
