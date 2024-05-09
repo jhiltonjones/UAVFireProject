@@ -4,13 +4,18 @@ from simfire.utils.config import Config
 
 config_path = './configs/model_configs.yml'
 
-# Speed: ~52.30024 km/h # TODO: Auto unit converter
-speed = 2 # Pixels = ~30 meters
-agent_timesteps = 5 # Seconds
+# Speed: ~52.30024 km/h
+speed = 52.3 # Input
+agent_timesteps = 5 # Seconds # Input
 
-num_agents = 1
-start_pos = [(340, 340)]
-init_fire = (350, 350)
+num_agents = 1 # Input
+start_pos = [(340, 340)] # Input
+init_fire = (350, 350) # Input
+
+# lat = # Input
+# long = # Input
+x_dimension = 30000 # Input
+y_dimension = 30000 # Input
 
 
 
@@ -28,6 +33,9 @@ class custom_sim(FireSimulation):
     def run_mitigation(self):
         if self._rendering:
             self._render()
+
+    def getFiremap(self):
+        return self.fire_map
 
 def run(sim):
     global agents, start_pos
@@ -48,17 +56,15 @@ def sign(x):
     else:
         return 1
     
-def mitigate(agent, sim, x, y, current_mitigation):
-    global speed
-
+def mitigate(agent, sim, step, x, y, current_mitigation):
     mitigations = []
-    for i in range(1, speed + 1):
+    for i in range(1, step + 1):
         mitigation = (agent[0] + (i * sign(x)), agent[1] + (i * sign(y)), sim.get_actions()[current_mitigation])
         mitigations.append(mitigation)
     
     return mitigations
 
-def move(sim, x, y):
+def move(sim, step, x, y):
     global agents, current_mitigation, realtime, count_min, agent_timesteps
     
     agents_move = []
@@ -66,7 +72,7 @@ def move(sim, x, y):
 
     for agent in agents:
         if current_mitigation:
-            mitigations += mitigate(agent, sim, x, y, current_mitigation)
+            mitigations += mitigate(agent, sim, step, x, y, current_mitigation)
         agent = (agent[0] + x, agent[1] + y, agent[2])
         agents_move.append(agent)
         
@@ -119,14 +125,21 @@ def set_mitigation(mitigation, button, buttons):
     button["state"] = "disabled"
     current_mitigation = mitigation
 
+def unit_converter(grid, speed): # TODO: Add support to non-square scenarios
+    global x_dimension
+    m_m = speed * 1000 / (60 * 60)
+    return m_m / (x_dimension / grid[0])
+
 def controls():
-    global root, speed, realtime
+    global root, speed, realtime, agent_timesteps
     root.destroy()
     root = tk.Tk()
     root.title("Controls")
 
     config = Config(config_path)
     sim = custom_sim(config)
+    step = round(unit_converter(sim.getFiremap().shape, speed) * agent_timesteps)
+    print(step)
 
     # Running
     run_button = tk.Button(root, text="Run", command=lambda: run(sim))
@@ -149,28 +162,28 @@ def controls():
     buttons = tk.Frame(mid_frame)
     buttons.pack(padx=5, pady=5)
 
-    up_button = tk.Button(buttons, text="N", command=lambda: move(sim, 0, -speed))
+    up_button = tk.Button(buttons, text="N", command=lambda: move(sim, step, 0, -step))
     up_button.grid(row=0, column=1)
 
-    left_button = tk.Button(buttons, text="W", command=lambda: move(sim, -speed, 0))
+    left_button = tk.Button(buttons, text="W", command=lambda: move(sim, step, -step, 0))
     left_button.grid(row=1, column=0)
 
-    right_button = tk.Button(buttons, text="E", command=lambda: move(sim, speed, 0))
+    right_button = tk.Button(buttons, text="E", command=lambda: move(sim, step, step, 0))
     right_button.grid(row=1, column=2)
 
-    down_button = tk.Button(buttons, text="S", command=lambda: move(sim, 0, speed))
+    down_button = tk.Button(buttons, text="S", command=lambda: move(sim, step, 0, step))
     down_button.grid(row=2, column=1)
 
-    nw_button = tk.Button(buttons, text="NW", command=lambda: move(sim, -speed, -speed))
+    nw_button = tk.Button(buttons, text="NW", command=lambda: move(sim, step, -step, -step))
     nw_button.grid(row=0, column=0)
 
-    ne_button = tk.Button(buttons, text="NE", command=lambda: move(sim, speed, -speed))
+    ne_button = tk.Button(buttons, text="NE", command=lambda: move(sim, step, step, -step))
     ne_button.grid(row=0, column=2)
 
-    sw_button = tk.Button(buttons, text="SW", command=lambda: move(sim, -speed, speed))
+    sw_button = tk.Button(buttons, text="SW", command=lambda: move(sim, step, -step, step))
     sw_button.grid(row=2, column=0)
 
-    se_button = tk.Button(buttons, text="SE", command=lambda: move(sim, speed, speed))
+    se_button = tk.Button(buttons, text="SE", command=lambda: move(sim, step, step, step))
     se_button.grid(row=2, column=2)
 
     # Mitigations Buttons
@@ -211,7 +224,8 @@ root.title("Practice Tool")
 
 tk.Label(root, text="Welcome to Practice Tool! Please set-up the settings below:").pack()
 
-# TODO: Add settings
+# TODO: Add settings:
+# Dimensions
 
 run_button = tk.Button(root, text="Start", command=lambda: controls())
 run_button.pack()
