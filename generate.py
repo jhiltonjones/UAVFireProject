@@ -1,6 +1,6 @@
 import random
 import time
-
+import math
 def read_center_info(file_path):
     """Read center longitude and latitude from a file."""
     with open(file_path, 'r') as file:
@@ -14,14 +14,27 @@ def read_center_info(file_path):
         print(f"Error parsing longitude/latitude: {e}")
         return None
     return float(lon), float(lat)
-import random
-import math
+
+
+def haversine(lon1, lat1, lon2, lat2):
+    """
+    Calculate the great circle distance in kilometers between two points 
+    on the earth (specified in decimal degrees)
+    """
+    lon1, lat1, lon2, lat2 = map(math.radians, [lon1, lat1, lon2, lat2])
+
+    dlon = lon2 - lon1 
+    dlat = lat2 - lat1 
+    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a)) 
+    r = 6371.0  
+    return c * r
 
 def generate_random_coordinate(lon, lat):
     while True:
-        R = 6371.0
+        R = 6371.0  
 
-        random_radius = random.uniform(0, 25)
+        random_radius = random.uniform(0, 15)  
 
         random_angle = random.uniform(0, 2 * math.pi)
 
@@ -36,15 +49,20 @@ def generate_random_coordinate(lon, lat):
         random_lon_round = round(random_lon, 2)
         random_lat_round = round(random_lat, 2)
         print(random_lat_round, random_lon_round)
+
+        distance = haversine(lon, lat, random_lon_round, random_lat_round)
+        print(f"Distance from center to random point: {distance} km")
+
         if random_lon_round and random_lon_round != lon and lat:
             break
-    return random_lon_round, random_lat_round
+    return random_lon_round, random_lat_round, distance
+
 
 def generate_random_weather_data(filepath, file_path, weather_path):
     
     weather_data = read_weather_info(weather_path)
     lon, lat = read_center_info(file_path='models/04-fire-potential/01-run.sh')
-    random_lon, random_lat = generate_random_coordinate(lon, lat)
+    random_lon, random_lat, distance = generate_random_coordinate(lon, lat)
     if lon is None or lat is None:
         return
 

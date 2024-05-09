@@ -13,7 +13,7 @@ import math
 from pyproj import Geod
 from pyproj import Transformer
 import os
-
+from overlaymaps import overlay_raster_at_point, display_location_on_raster_utm, convert_lat_lon_to_utm
 
 
 csv_file_path = './models/03-real-fuels/outputs/fire_size_stats.csv' 
@@ -297,12 +297,23 @@ def modify_bash_script(script_path, lon, lat, travel_time):
             file.writelines(new_lines)
     except Exception as e:
         print(f"Error modifying bash script: {e}")
+def modify_txt_in(script_path2, lon, lat, travel_time):
+    try:
+        with open(script_path2, 'r') as file:
+            lines = file.readlines()
 
+        new_lines = []
+        for line in lines:
+            if 'SIMULATION_TSTOP' in line:
+                travel_time_round = round(travel_time*60)
+                line = f"SIMULATION_TSTOP={travel_time_round}\n"
+           
+            new_lines.append(line)  
 
-def modify_wx_csv(csv_path, weather_data):
-    with open(csv_path, 'w') as file:
-        file.write('ws\twd\tm1\tm10\tm100\tlh\tlw\n')
-        file.writelines(weather_data)
+        with open(script_path2, 'w') as file:
+            file.writelines(new_lines)
+    except Exception as e:
+        print(f"Error modifying bash script: {e}")
 
 import os
 import subprocess
@@ -310,7 +321,7 @@ import subprocess
 def run_script(script_name):
     script_directory = os.path.join(os.getcwd(), 'models', '03-real-fuels')
     script_path = os.path.join(script_directory, script_name)
-    print("Running script at:", script_path)  # Debugging output
+    print("Running script at:", script_path)  
     try:
         subprocess.run(['bash', script_path], check=True, cwd=script_directory)
         print("Script executed successfully.")
@@ -336,7 +347,7 @@ def display_raster(tif_file_path):
         plt.show()
 
 
-def find_minimal_effective_circle(fire_area, spread_rate, drone_speed=60):
+def find_minimal_effective_circle(fire_area, spread_rate, drone_speed=50):
     """Find the minimal effective circle the drone can circle, adjusting for fire spread.
 
     Args:
@@ -375,9 +386,9 @@ def main():
     script_directory = 'models/03-real-fuels'
     weather_info_path = ('out/weather_info.txt')
     script_path = os.path.join(script_directory, '01-run.sh')
-    print("Full script path:", script_path)
+    script_path2 = os.path.join(script_directory, 'elmfire.data.in')
     csv_path = './models/03-real-fuels/outputs/fire_size_stats.csv'
-
+    base_raster_path= 'models/04-fire-potential/outputs/head_fire_spread_rate_006.tif'
 
     result = read_weather_info(weather_info_path)
     if result:
@@ -389,6 +400,7 @@ def main():
         fastest_drone, travel_time = calculate_drone_travel_time(lon, lat, converted_coords)
         print(travel_time)
         modify_bash_script(script_path, lon, lat, travel_time)
+        modify_txt_in(script_path2, lon, lat, travel_time)
         # modify_wx_csv(weather_write_path, weather_data)
         
         run_script('01-run.sh')
@@ -434,8 +446,11 @@ def main():
                 update_fire_stats(lon, lat, fire_volume, fire_area, average_spread, priority, fastest_drone, travel_time, optimal_circumference, drone_suppressant_time)
         create_gui(csv_data)
         
-        display_raster(tif_file_path)
-       
+        # display_raster(tif_file_path)
+        overlay_raster_at_point(base_raster_path, tif_file_path)
+        utm_x, utm_y = convert_lat_lon_to_utm(lon, lat)
+        display_location_on_raster_utm(base_raster_path, utm_x, utm_y)
+
     else:
         print("Failed to read configuration or parse longitude/latitude.")
 

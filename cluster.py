@@ -31,18 +31,14 @@ def convert_utm_to_lat_lon_from_file(filepath, input_crs='epsg:32610', output_cr
     Returns:
     dict: A dictionary with keys as position descriptions and values as tuples of (longitude, latitude).
     """
-    # Open the file and read the coordinates
     with open(filepath, 'r') as file:
         line = file.readline().strip()
-        utm_coords_strings = line.split('\t')  # Assuming the file has a single line with tab-separated tuples
-
-    # Parse the coordinates into tuples of floats
+        utm_coords_strings = line.split('\t')  
     utm_coords = []
     for coord in utm_coords_strings:
         parts = coord.strip('()').split(',')
         utm_coords.append((float(parts[0]), float(parts[1])))
 
-    # Convert coordinates
     transformer = Transformer.from_crs(input_crs, output_crs, always_xy=True)
     results = {}
     positions = ["Top Left", "Top Right", "Bottom Left", "Bottom Right"]
