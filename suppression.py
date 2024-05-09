@@ -90,6 +90,7 @@ def close(sim):
     sim.rendering = False
 
 def save(sim):
+    # TODO: Add loading
     sim.save_gif('./out/simfire/out.gif')
 
 def disable(button):
@@ -103,7 +104,10 @@ def disable(button):
     print(realtime.get())
 
 def spread(sim):
-    sim.run(1)
+    if (1 not in (sim.run(1)[0])):
+        results = tk.messagebox.askyesno(title="Results", message="Strategy has successfully put the fire out! Would you like to save a GIF for reference?")
+        if results:
+            save(sim)
 
 def reset_buttons(buttons):
     for button in buttons:
@@ -140,6 +144,7 @@ def controls():
     
     mid_frame = tk.Frame(root)
     mid_frame.pack(padx=5, pady=5)
+
     # Directions
     buttons = tk.Frame(mid_frame)
     buttons.pack(padx=5, pady=5)
@@ -204,7 +209,7 @@ def controls():
 root = tk.Tk()
 root.title("Practice Tool")
 
-tk.Label(text="Welcome to Practice Tool! Please set-up the settings below:").pack()
+tk.Label(root, text="Welcome to Practice Tool! Please set-up the settings below:").pack()
 
 # TODO: Add settings
 
