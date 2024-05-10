@@ -448,8 +448,8 @@ def main():
         
         # display_raster(tif_file_path)
         overlay_raster_at_point(base_raster_path, tif_file_path)
-        utm_x, utm_y = convert_lat_lon_to_utm(lon, lat)
-        display_location_on_raster_utm(base_raster_path, utm_x, utm_y)
+        # utm_x, utm_y = convert_lat_lon_to_utm(lon, lat)
+        # display_location_on_raster_utm(base_raster_path, utm_x, utm_y)
 
     else:
         print("Failed to read configuration or parse longitude/latitude.")

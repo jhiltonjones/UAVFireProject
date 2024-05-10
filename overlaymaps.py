@@ -106,6 +106,19 @@ def overlay_raster_at_point(base_raster_path, overlay_raster_path, zoom_scale=0.
             # plt.xlim(zoomed_extent2[0], zoomed_extent2[1])
             # plt.ylim(zoomed_extent2[2], zoomed_extent2[3])
             # plt.show()
+            with rasterio.open(base_raster_path) as base_src:
+                col, row = base_src.index(center_x2, center_y2)  
+                
+                plt.figure(figsize=(10, 10))
+                plt.imshow(band1_normalised, cmap='Greens', extent=base_extent, interpolation='none')
+                plt.scatter([center_x], [center_y], color='red', s=50, label='Overlay Center')  
+                plt.title('Overlay Raster on Base Raster with Center Marked')
+                plt.legend()
+                plt.show()
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
 
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -116,14 +129,6 @@ def get_first_matching_file(pattern):
     if files:
         return files[0]
     return None
-
-
-
-def convert_lat_lon_to_utm(lon, lat, output_crs='epsg:32610'):
-    """ Convert latitude and longitude to UTM coordinates. """
-    transformer = Transformer.from_crs('epsg:4326', output_crs, always_xy=True)
-    x, y = transformer.transform(lon, lat)
-    return x, y
 
 def display_location_on_raster_utm(raster_path, x, y):
     """ Display UTM coordinates on the raster image. """
@@ -149,10 +154,10 @@ def main():
     base_raster_path = 'models/04-fire-potential/outputs/head_fire_spread_rate_006.tif'
     overlay_raster_path = tif_file_path
     file_path = 'out/weather_info.txt'  
-    longitude, latitude = readcenterinfo(file_path)   
+    longitude, latitude = readcenterinfo(file_path) 
+    print(longitude, latitude)
     utm_x, utm_y = convert_lat_lon_to_utm(longitude, latitude)
     overlay_raster_at_point(base_raster_path, overlay_raster_path)
-    utm_x, utm_y = convert_lat_lon_to_utm(longitude, latitude)
-    display_location_on_raster_utm(base_raster_path, utm_x, utm_y)
+    # display_location_on_raster_utm(base_raster_path, utm_x, utm_y)
 if __name__ == "__main__":
     main()
