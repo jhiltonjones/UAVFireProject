@@ -17,7 +17,7 @@ init_fire = (350, 350) # Input
 x_dimension = 30000 # Input
 y_dimension = 30000 # Input
 
-
+run_bool = False
 
 agents = []
 
@@ -37,8 +37,12 @@ class custom_sim(FireSimulation):
     def getFiremap(self):
         return self.fire_map
 
-def run(sim):
-    global agents, start_pos
+def run(sim, widgets, fire_button, none_button, buttons_list): # TODO: Add restart functionality
+    global agents, start_pos, run_bool
+    run_bool = True
+    toggle_widgets(fire_button, widgets)
+    disable(fire_button)
+    set_mitigation(None, none_button, buttons_list)
     sim.rendering = True
 
     for i in range(num_agents):
@@ -107,22 +111,25 @@ def move(sim, x, y, hr, min, sec, grid):
             count_min = 0
             spread(sim, t)
 
-def close(sim):
+def close(sim, fire_button, widgets, buttons_list):
+    global run_bool
     sim.rendering = False
+    run_bool = False
+    reset_buttons(buttons_list)
+    toggle_widgets(fire_button, widgets)
 
 def save(sim):
     # TODO: Add loading
     sim.save_gif('./out/simfire/out.gif')
 
 def disable(button):
-    global count_min, realtime
-    count_min = 0
-    if button["state"] == "disabled":
-        button["state"] = "normal"
-    elif button["state"] == "normal":
-        button["state"] = "disabled"
-    
-    print(realtime.get())
+    global count_min, realtime, run_bool
+    if (run_bool):
+        count_min = 0
+        if (realtime.get()):
+            button["state"] = "disabled"
+        else:
+            button["state"] = "normal"
 
 def tick(hr, min, sec, amount):
     time_sec = int(hr.get()) * 3600 + int(min.get()) * 60 + int(sec.get()) - amount
@@ -141,6 +148,8 @@ def tick(hr, min, sec, amount):
 
 
 def spread(sim, t):
+    global run_bool
+
     # Checking winning
     if (1 not in (sim.run(1)[0])):
         results = tk.messagebox.askyesno(title="Results", message="Strategy has successfully put the fire out! Would you like to save a GIF for reference?")
@@ -150,8 +159,9 @@ def spread(sim, t):
         tk.messagebox.showerror(title="Results", message="Strategy has failed within the given time! Please retry or add more time!")
 
 def spread_button(sim, hr, min, sec):
-    t = tick(hr, min, sec, 60)
-    spread(sim, t)
+    if (run_bool == True):
+        t = tick(hr, min, sec, 60)
+        spread(sim, t)
 
 def reset_buttons(buttons):
     for button in buttons:
@@ -168,6 +178,14 @@ def unit_converter(grid, speed, agent_timesteps):
     m_s = speed * 1000 / (60 * 60)
     return round((m_s / (x_dimension / grid[1])) * agent_timesteps), round((m_s / (y_dimension / grid[0])) * agent_timesteps)
 
+def toggle_widgets(fire_button, widgets):
+    fire_button["state"] = "disabled"
+    for widget in widgets:
+        if widget["state"] == "disabled":
+            widget["state"] = "normal"
+        else:
+            widget["state"] = "disabled"
+
 def controls():
     global root, speed, realtime, agent_timesteps, hr, min, sec
     hr_value = hr.get()
@@ -176,6 +194,8 @@ def controls():
     root.destroy()
     root = tk.Tk()
     root.title("Controls")
+
+    widgets = []
 
     config = Config(config_path)
     sim = custom_sim(config)
@@ -203,8 +223,15 @@ def controls():
     
 
     # Running
-    run_button = tk.Button(root, text="Run", command=lambda: run(sim))
+    fire_button = None
+    none_button = None
+    buttons_list = []
+
+    run_button = tk.Button(root, text="Run", command=lambda: run(sim, widgets, fire_button, none_button, buttons_list))
     run_button.pack(pady=5)
+    widgets.append(run_button)
+
+    run_button["state"] = "disabled"
 
     real_time_frame = tk.Frame(root)
     real_time_frame.pack(padx=5, pady=5)
@@ -246,16 +273,14 @@ def controls():
     se_button = tk.Button(buttons, text="SE", command=lambda: move(sim, step_x, step_y, hr, min, sec, grid))
     se_button.grid(row=2, column=2)
 
+    widgets += buttons.winfo_children()
+
     # Mitigations Buttons
     mitigation_buttons = tk.Frame(mid_frame)
     mitigation_buttons.pack(padx=5, pady=5)
 
-    buttons_list = []
-
     none_button = tk.Button(mitigation_buttons, text="None", command=lambda: set_mitigation(None, none_button, buttons_list))
     none_button.grid(row=0, column=0)
-
-    none_button["state"] = "disabled"
 
     fl_button = tk.Button(mitigation_buttons, text="Fireline", command=lambda: set_mitigation('fireline', fl_button, buttons_list))
     fl_button.grid(row=1, column=0)
@@ -266,18 +291,23 @@ def controls():
     sl_button = tk.Button(mitigation_buttons, text="Scratchline", command=lambda: set_mitigation('scratchline', sl_button, buttons_list))
     sl_button.grid(row=3, column=0)
 
-    buttons_list = [none_button, fl_button, wl_button, sl_button]
+    buttons_list = mitigation_buttons.winfo_children()
+    widgets += mitigation_buttons.winfo_children()
 
     # Additional Buttons
     bot_bottons = tk.Frame(root)
     bot_bottons.pack(pady=5)
 
-    close_button = tk.Button(bot_bottons, text="Close", command=lambda: close(sim))
+    close_button = tk.Button(bot_bottons, text="Close", command=lambda: close(sim, fire_button, widgets, buttons_list))
     close_button.grid(row=0, column=0)
 
     save_button = tk.Button(bot_bottons, text="Save", command=lambda: save(sim))
     save_button.grid(row=0, column=1)
 
+    widgets += bot_bottons.winfo_children()
+
+    toggle_widgets(fire_button, widgets)
+    root.mainloop()
 
 root = tk.Tk()
 root.title("Practice Tool")
