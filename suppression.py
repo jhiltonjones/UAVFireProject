@@ -56,11 +56,14 @@ def sign(x):
     else:
         return 1
     
-def mitigate(agent, sim, step, x, y, current_mitigation):
+def mitigate(agent, sim, x, y, current_mitigation):
+    step = max(abs(x), abs(y))
     mitigations = []
     for i in range(1, step + 1):
         mitigation = (agent[0] + (i * sign(x)), agent[1] + (i * sign(y)), sim.get_actions()[current_mitigation])
         mitigations.append(mitigation)
+        x = x + (1 * -sign(x))
+        y = y + (1 * -sign(y))
     
     return mitigations
 
@@ -72,7 +75,7 @@ def check_edge(agent, x, grid):
 
     return x
 
-def move(sim, step, x, y, hr, min, sec, grid):
+def move(sim, x, y, hr, min, sec, grid):
     global agents, current_mitigation, realtime, count_min, agent_timesteps
     
     agents_move = []
@@ -83,7 +86,7 @@ def move(sim, step, x, y, hr, min, sec, grid):
         y_new = check_edge(agent[1], y, grid[0])
 
         if current_mitigation:
-            mitigations += mitigate(agent, sim, step, x_new, y_new, current_mitigation)
+            mitigations += mitigate(agent, sim, x_new, y_new, current_mitigation)
         agent = (agent[0] + x_new, agent[1] + y_new, agent[2])
         agents_move.append(agent)
 
@@ -160,10 +163,10 @@ def set_mitigation(mitigation, button, buttons):
     button["state"] = "disabled"
     current_mitigation = mitigation
 
-def unit_converter(grid, speed): # TODO: Add support to non-square scenarios
-    global x_dimension
-    m_m = speed * 1000 / (60 * 60)
-    return m_m / (x_dimension / grid[0])
+def unit_converter(grid, speed, agent_timesteps):
+    global x_dimension, y_dimension
+    m_s = speed * 1000 / (60 * 60)
+    return round((m_s / (x_dimension / grid[1])) * agent_timesteps), round((m_s / (y_dimension / grid[0])) * agent_timesteps)
 
 def controls():
     global root, speed, realtime, agent_timesteps, hr, min, sec
@@ -177,7 +180,7 @@ def controls():
     config = Config(config_path)
     sim = custom_sim(config)
     grid = sim.getFiremap().shape
-    step = round(unit_converter(grid, speed) * agent_timesteps)
+    step_x, step_y = unit_converter(grid, speed, agent_timesteps)
 
     # Timer
     timer_frame = tk.Frame(root)
@@ -219,28 +222,28 @@ def controls():
     buttons = tk.Frame(mid_frame)
     buttons.pack(padx=5, pady=5)
 
-    up_button = tk.Button(buttons, text="N", command=lambda: move(sim, step, 0, -step, hr, min, sec, grid))
+    up_button = tk.Button(buttons, text="N", command=lambda: move(sim, 0, -step_y, hr, min, sec, grid))
     up_button.grid(row=0, column=1)
 
-    left_button = tk.Button(buttons, text="W", command=lambda: move(sim, step, -step, 0, hr, min, sec, grid))
+    left_button = tk.Button(buttons, text="W", command=lambda: move(sim, -step_x, 0, hr, min, sec, grid))
     left_button.grid(row=1, column=0)
 
-    right_button = tk.Button(buttons, text="E", command=lambda: move(sim, step, step, 0, hr, min, sec, grid))
+    right_button = tk.Button(buttons, text="E", command=lambda: move(sim, step_x, 0, hr, min, sec, grid))
     right_button.grid(row=1, column=2)
 
-    down_button = tk.Button(buttons, text="S", command=lambda: move(sim, step, 0, step, hr, min, sec, grid))
+    down_button = tk.Button(buttons, text="S", command=lambda: move(sim, 0, step_y, hr, min, sec, grid))
     down_button.grid(row=2, column=1)
 
-    nw_button = tk.Button(buttons, text="NW", command=lambda: move(sim, step, -step, -step, hr, min, sec, grid))
+    nw_button = tk.Button(buttons, text="NW", command=lambda: move(sim, -step_x, -step_y, hr, min, sec, grid))
     nw_button.grid(row=0, column=0)
 
-    ne_button = tk.Button(buttons, text="NE", command=lambda: move(sim, step, step, -step, hr, min, sec, grid))
+    ne_button = tk.Button(buttons, text="NE", command=lambda: move(sim, step_x, -step_y, hr, min, sec, grid))
     ne_button.grid(row=0, column=2)
 
-    sw_button = tk.Button(buttons, text="SW", command=lambda: move(sim, step, -step, step, hr, min, sec, grid))
+    sw_button = tk.Button(buttons, text="SW", command=lambda: move(sim, -step_x, step_y, hr, min, sec, grid))
     sw_button.grid(row=2, column=0)
 
-    se_button = tk.Button(buttons, text="SE", command=lambda: move(sim, step, step, step, hr, min, sec, grid))
+    se_button = tk.Button(buttons, text="SE", command=lambda: move(sim, step_x, step_y, hr, min, sec, grid))
     se_button.grid(row=2, column=2)
 
     # Mitigations Buttons
