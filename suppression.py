@@ -1,52 +1,72 @@
 import tkinter as tk
 from simfire.sim.simulation import FireSimulation
 from simfire.utils.config import Config
+import yaml
 
 config_path = './configs/model_configs.yml'
 
-# Speed: ~52.30024 km/h
-speed = 52.3 # Input
-agent_timesteps = 5 # Seconds # Input
+class MyFloat:
+    def __init__(self, value):
+        self.value = value
+    def setValue(self, value):
+        self.value = float(value)
+    def getValue(self):
+        return self.value
+    
+class MyTuple:
+    def __init__(self, value):
+        self.value = value
+    def setValue(self, value):
+        self.value = (int(value.split(',')[0].strip(" (")), int(value.split(',')[1].strip(") ")))
+    def getValue(self):
+        return self.value
 
-num_agents = 1 # Input
-start_pos = [(340, 340)] # Input
-init_fire = (350, 350) # Input
-
-# lat = # Input
-# long = # Input
-x_dimension = 30000 # Input
-y_dimension = 30000 # Input
-
-run_bool = False
-
-agents = []
-
-current_mitigation = None
-
-realtime = None
-count_min = 0
-
-class custom_sim(FireSimulation):
+class CustomSim(FireSimulation):
     def __init__(self, *args, **kwargs):
-        super(custom_sim, self).__init__(*args, **kwargs)
+        super(CustomSim, self).__init__(*args, **kwargs)
 
-    def run_mitigation(self):
+    def run_mitigation(self): # TODO: Fix elapsed time issue, if needed.
         if self._rendering:
             self._render()
 
     def getFiremap(self):
         return self.fire_map
 
-def run(sim, widgets, fire_button, none_button, buttons_list): # TODO: Add restart functionality
-    global agents, start_pos, run_bool
+# Location, Dimensions
+lon = MyFloat(None) # Input
+lat = MyFloat(None) # Input
+x_dimension = MyFloat(None) # Input
+y_dimension = MyFloat(None) # Input
+
+# Speeds
+speed = MyFloat(None) # Input
+agent_timesteps = MyFloat(None) # Seconds # Input
+
+# Positions
+init_fire = MyTuple(None) # (350, 350) # Input
+num_agents = MyFloat(None) # Input
+agent_start_pos = [] # Input
+
+values = [lon, lat, x_dimension, y_dimension, speed, agent_timesteps, init_fire, num_agents]
+
+run_bool = False
+current_mitigation = None
+realtime = None
+
+agents = []
+
+count_min = 0
+
+def run(sim, widgets, fire_button, none_button, buttons_list): # TODO: Add restart functionality.
+    global agents, agent_start_pos, run_bool
     run_bool = True
     toggle_widgets(fire_button, widgets)
     disable(fire_button)
     set_mitigation(None, none_button, buttons_list)
     sim.rendering = True
 
-    for i in range(num_agents):
-        agent = (start_pos[i][0], start_pos[i][1], i)
+    for i in range(int(num_agents.getValue())):
+        agent = (agent_start_pos[i][0], agent_start_pos[i][1], i)
         agents.append(agent)
 
     sim.update_agent_positions(agents)
@@ -94,7 +114,6 @@ def move(sim, x, y, hr, min, sec, grid):
         agent = (agent[0] + x_new, agent[1] + y_new, agent[2])
         agents_move.append(agent)
 
-
     agents = agents_move
     sim.update_agent_positions(agents)
 
@@ -104,8 +123,8 @@ def move(sim, x, y, hr, min, sec, grid):
     sim.run_mitigation()
     
     if (realtime.get()):
-        t = tick(hr, min, sec, agent_timesteps)
-        count_min += agent_timesteps
+        t = tick(hr, min, sec, agent_timesteps.getValue())
+        count_min += agent_timesteps.getValue()
         if (count_min >= 60 or t == 0):
             print(count_min)
             count_min = 0
@@ -146,7 +165,6 @@ def tick(hr, min, sec, amount):
 
     return time_sec
 
-
 def spread(sim, t):
     global run_bool
 
@@ -175,8 +193,8 @@ def set_mitigation(mitigation, button, buttons):
 
 def unit_converter(grid, speed, agent_timesteps):
     global x_dimension, y_dimension
-    m_s = speed * 1000 / (60 * 60)
-    return round((m_s / (x_dimension / grid[1])) * agent_timesteps), round((m_s / (y_dimension / grid[0])) * agent_timesteps)
+    m_s = speed.getValue() * 1000 / (60 * 60)
+    return round((m_s / (x_dimension.getValue() / grid[1])) * agent_timesteps.getValue()), round((m_s / (y_dimension.getValue() / grid[0])) * agent_timesteps.getValue())
 
 def toggle_widgets(fire_button, widgets):
     fire_button["state"] = "disabled"
@@ -186,19 +204,51 @@ def toggle_widgets(fire_button, widgets):
         else:
             widget["state"] = "disabled"
 
-def controls():
-    global root, speed, realtime, agent_timesteps, hr, min, sec
+def setValues(entries, agent_start_pos_entry):
+    global values
+    set_agents_pos(agent_start_pos_entry.get())
+    for v in range(len(values)):
+        values[v].setValue(entries[v].get())
+
+def set_agents_pos(input):
+    global agent_start_pos
+
+    for i in input.split("),"):
+        agent_start_pos.append((int(i.split(',')[0].strip(" [](")), int(i.split(',')[1].strip(") []"))))
+
+def modify_config(config_path): # TODO: Add better error-handling
+    global lon, lat, x_dimension, y_dimension, init_fire
+    
+    with open(config_path, 'r') as file:
+        config = yaml.safe_load(file)
+
+    config['operational']['longitude'] = lon.getValue()
+    config['operational']['latitude'] = lat.getValue()
+    config['operational']['width'] = int(x_dimension.getValue())
+    config['operational']['height'] = int(y_dimension.getValue())
+    
+    config['fire']['fire_initial_position']['static']['position'] = init_fire.getValue()
+
+    with open(config_path, 'w') as file:
+        yaml.safe_dump(config, file)
+
+
+def controls(entries, agent_start_pos_entry):
+    global config_path, root, speed, realtime, agent_timesteps, hr, min, sec
     hr_value = hr.get()
     min_value = min.get()
     sec_value = sec.get()
+    setValues(entries, agent_start_pos_entry)
+    modify_config(config_path)
     root.destroy()
+
     root = tk.Tk()
     root.title("Controls")
 
     widgets = []
 
     config = Config(config_path)
-    sim = custom_sim(config)
+    sim = CustomSim(config)
     grid = sim.getFiremap().shape
     step_x, step_y = unit_converter(grid, speed, agent_timesteps)
 
@@ -220,7 +270,6 @@ def controls():
     sec.set(sec_value)
     sec_entry = tk.Entry(timer_frame, textvariable=sec, width=2)
     sec_entry.grid(row=0, column=2)
-    
 
     # Running
     fire_button = None
@@ -314,10 +363,11 @@ root.title("Practice Tool")
 
 tk.Label(root, text="Welcome to Practice Tool! Please set-up the settings below:").pack()
 
-# TODO: Add settings:
+# Settings:
+entries = []
 
 # Timer
-timer = tk.Label(root, text="Timer")
+timer = tk.Label(root, text="Timer (hr:min:sec)")
 timer.pack(pady=5)
 
 timer_frame = tk.Frame(root)
@@ -338,9 +388,64 @@ sec.set("00")
 sec_entry = tk.Entry(timer_frame, textvariable=sec, width=2)
 sec_entry.grid(row=0, column=2)
 
-# Dimensions
+# Location, Dimensions
+lon_entry = tk.StringVar()
+lon_entry.set("-120.05")
+tk.Label(root, text="Longitude").pack(pady=(10, 0))
+tk.Entry(root, width=20, textvariable=lon_entry).pack(pady=5)
+entries.append(lon_entry)
 
-run_button = tk.Button(root, text="Start", command=lambda: controls())
+lat_entry = tk.StringVar()
+lat_entry.set("38.13")
+tk.Label(root, text="Latitude").pack(pady=(10, 0))
+tk.Entry(root, width=20, textvariable=lat_entry).pack(pady=5)
+entries.append(lat_entry)
+
+width = tk.StringVar()
+width.set("30000")
+tk.Label(root, text="Width").pack(pady=(10, 0))
+tk.Entry(root, width=20, textvariable=width).pack(pady=5)
+entries.append(width)
+
+height = tk.StringVar()
+height.set("30000")
+tk.Label(root, text="Height").pack(pady=(10, 0))
+tk.Entry(root, width=20, textvariable=height).pack(pady=5)
+entries.append(height)
+
+# Speeds
+speed_entry = tk.StringVar()
+speed_entry.set("52.3")
+tk.Label(root, text="Speed (km/h)").pack(pady=(10, 0))
+tk.Entry(root, width=20, textvariable=speed_entry).pack(pady=5)
+entries.append(speed_entry)
+
+agent_timesteps_entry = tk.StringVar()
+agent_timesteps_entry.set("5")
+tk.Label(root, text="Length of Agent's Timestep (seconds)").pack(pady=(10, 0))
+tk.Entry(root, width=20, textvariable=agent_timesteps_entry).pack(pady=5)
+entries.append(agent_timesteps_entry)
+
+# Positions
+init_fire_entry = tk.StringVar()
+init_fire_entry.set("(350, 350)")
+tk.Label(root, text="Initial Fire Position (x, y)").pack(pady=(10, 0))
+tk.Entry(root, width=20, textvariable=init_fire_entry).pack(pady=5)
+entries.append(init_fire_entry)
+
+num_agents_entry = tk.StringVar()
+num_agents_entry.set("1")
+tk.Label(root, text="Number of Agents").pack(pady=(10, 0))
+tk.Entry(root, width=20, textvariable=num_agents_entry).pack(pady=5)
+entries.append(num_agents_entry)
+
+agent_start_pos_entry = tk.StringVar()
+agent_start_pos_entry.set("[(340, 340)]")
+tk.Label(root, text="Agents' Initial Positions [(x, y), ...]").pack(pady=(10, 0))
+tk.Entry(root, width=20, textvariable=agent_start_pos_entry).pack(pady=5)
+
+run_button = tk.Button(root, text="Start", command=lambda: controls(entries, agent_start_pos_entry))
 run_button.pack()
 
+# TODO: Add "Other" settings for configurations
 root.mainloop()
