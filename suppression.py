@@ -64,7 +64,7 @@ def mitigate(agent, sim, step, x, y, current_mitigation):
     
     return mitigations
 
-def move(sim, step, x, y):
+def move(sim, step, x, y, hr, min, sec):
     global agents, current_mitigation, realtime, count_min, agent_timesteps
     
     agents_move = []
@@ -86,11 +86,12 @@ def move(sim, step, x, y):
     sim.run_mitigation()
     
     if (realtime.get()):
+        t = tick(hr, min, sec, agent_timesteps)
         count_min += agent_timesteps
-        if (count_min >= 60):
+        if (count_min >= 60 or t == 0):
             print(count_min)
             count_min = 0
-            sim.run(1)
+            spread(sim, t)
 
 def close(sim):
     sim.rendering = False
@@ -109,11 +110,34 @@ def disable(button):
     
     print(realtime.get())
 
-def spread(sim):
+def tick(hr, min, sec, amount):
+    time_sec = int(hr.get()) * 3600 + int(min.get()) * 60 + int(sec.get()) - amount
+    
+    if (time_sec < 0):
+        time_sec = 0
+    
+    temp_m, temp_s = divmod(time_sec, 60)
+    temp_h, temp_m = divmod(temp_m, 60)
+
+    sec.set(str(temp_s))
+    min.set(str(temp_m))
+    hr.set(str(temp_h))
+
+    return time_sec
+
+
+def spread(sim, t):
+    # Checking winning
     if (1 not in (sim.run(1)[0])):
         results = tk.messagebox.askyesno(title="Results", message="Strategy has successfully put the fire out! Would you like to save a GIF for reference?")
         if results:
             save(sim)
+    elif(t <= 0): # Checking losing
+        tk.messagebox.showerror(title="Results", message="Strategy has failed within the given time! Please retry or add more time!")
+
+def spread_button(sim, hr, min, sec):
+    t = tick(hr, min, sec, 60)
+    spread(sim, t)
 
 def reset_buttons(buttons):
     for button in buttons:
@@ -131,7 +155,10 @@ def unit_converter(grid, speed): # TODO: Add support to non-square scenarios
     return m_m / (x_dimension / grid[0])
 
 def controls():
-    global root, speed, realtime, agent_timesteps
+    global root, speed, realtime, agent_timesteps, hr, min, sec
+    hr_value = hr.get()
+    min_value = min.get()
+    sec_value = sec.get()
     root.destroy()
     root = tk.Tk()
     root.title("Controls")
@@ -139,7 +166,26 @@ def controls():
     config = Config(config_path)
     sim = custom_sim(config)
     step = round(unit_converter(sim.getFiremap().shape, speed) * agent_timesteps)
-    print(step)
+
+    # Timer
+    timer_frame = tk.Frame(root)
+    timer_frame.pack(pady=5)
+
+    hr = tk.StringVar()
+    hr.set(hr_value)
+    hr_entry = tk.Entry(timer_frame, textvariable=hr, width=2)
+    hr_entry.grid(row=0, column=0)
+
+    min = tk.StringVar()
+    min.set(min_value)
+    min_entry = tk.Entry(timer_frame, textvariable=min, width=2)
+    min_entry.grid(row=0, column=1)
+
+    sec = tk.StringVar()
+    sec.set(sec_value)
+    sec_entry = tk.Entry(timer_frame, textvariable=sec, width=2)
+    sec_entry.grid(row=0, column=2)
+    
 
     # Running
     run_button = tk.Button(root, text="Run", command=lambda: run(sim))
@@ -147,9 +193,8 @@ def controls():
 
     real_time_frame = tk.Frame(root)
     real_time_frame.pack(padx=5, pady=5)
-
     realtime = tk.BooleanVar()
-    fire_button = tk.Button(real_time_frame, text="Spread", command=lambda: spread(sim))
+    fire_button = tk.Button(real_time_frame, text="Spread", command=lambda: spread_button(sim, hr, min, sec))
     real_time_check = tk.Checkbutton(real_time_frame, text="Real-time", onvalue=True, offvalue=False, variable=realtime, command=lambda: disable(fire_button))# tk.Checkbutton()
 
     real_time_check.grid(row=0, column=0)
@@ -162,28 +207,28 @@ def controls():
     buttons = tk.Frame(mid_frame)
     buttons.pack(padx=5, pady=5)
 
-    up_button = tk.Button(buttons, text="N", command=lambda: move(sim, step, 0, -step))
+    up_button = tk.Button(buttons, text="N", command=lambda: move(sim, step, 0, -step, hr, min, sec))
     up_button.grid(row=0, column=1)
 
-    left_button = tk.Button(buttons, text="W", command=lambda: move(sim, step, -step, 0))
+    left_button = tk.Button(buttons, text="W", command=lambda: move(sim, step, -step, 0, hr, min, sec))
     left_button.grid(row=1, column=0)
 
-    right_button = tk.Button(buttons, text="E", command=lambda: move(sim, step, step, 0))
+    right_button = tk.Button(buttons, text="E", command=lambda: move(sim, step, step, 0, hr, min, sec))
     right_button.grid(row=1, column=2)
 
-    down_button = tk.Button(buttons, text="S", command=lambda: move(sim, step, 0, step))
+    down_button = tk.Button(buttons, text="S", command=lambda: move(sim, step, 0, step, hr, min, sec))
     down_button.grid(row=2, column=1)
 
-    nw_button = tk.Button(buttons, text="NW", command=lambda: move(sim, step, -step, -step))
+    nw_button = tk.Button(buttons, text="NW", command=lambda: move(sim, step, -step, -step, hr, min, sec))
     nw_button.grid(row=0, column=0)
 
-    ne_button = tk.Button(buttons, text="NE", command=lambda: move(sim, step, step, -step))
+    ne_button = tk.Button(buttons, text="NE", command=lambda: move(sim, step, step, -step, hr, min, sec))
     ne_button.grid(row=0, column=2)
 
-    sw_button = tk.Button(buttons, text="SW", command=lambda: move(sim, step, -step, step))
+    sw_button = tk.Button(buttons, text="SW", command=lambda: move(sim, step, -step, step, hr, min, sec))
     sw_button.grid(row=2, column=0)
 
-    se_button = tk.Button(buttons, text="SE", command=lambda: move(sim, step, step, step))
+    se_button = tk.Button(buttons, text="SE", command=lambda: move(sim, step, step, step, hr, min, sec))
     se_button.grid(row=2, column=2)
 
     # Mitigations Buttons
@@ -225,6 +270,29 @@ root.title("Practice Tool")
 tk.Label(root, text="Welcome to Practice Tool! Please set-up the settings below:").pack()
 
 # TODO: Add settings:
+
+# Timer
+timer = tk.Label(root, text="Timer")
+timer.pack(pady=5)
+
+timer_frame = tk.Frame(root)
+timer_frame.pack()
+
+hr = tk.StringVar()
+hr.set("00")
+hr_entry = tk.Entry(timer_frame, textvariable=hr, width=2)
+hr_entry.grid(row=0, column=0)
+
+min = tk.StringVar()
+min.set("00")
+min_entry = tk.Entry(timer_frame, textvariable=min, width=2)
+min_entry.grid(row=0, column=1)
+
+sec = tk.StringVar()
+sec.set("00")
+sec_entry = tk.Entry(timer_frame, textvariable=sec, width=2)
+sec_entry.grid(row=0, column=2)
+
 # Dimensions
 
 run_button = tk.Button(root, text="Start", command=lambda: controls())
