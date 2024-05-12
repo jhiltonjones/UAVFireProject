@@ -448,4 +448,6 @@ run_button = tk.Button(root, text="Start", command=lambda: controls(entries, age
 run_button.pack()
 
 # TODO: Add "Other" settings for configurations
+tk.Label(root, text=f"To adjust further enviromental configurations, please refer to the config file at {config_path}").pack(padx=10)
+
 root.mainloop()
