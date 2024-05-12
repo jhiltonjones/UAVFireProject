@@ -9,43 +9,33 @@ from rasterio.plot import show
 
 def get_raster_data_bounds(filepath):
     with rasterio.open(filepath) as dataset:
-        # Read the data and the mask simultaneously
-        data = dataset.read(1)  # Reading the first band; adjust if needed for other bands
-        mask = dataset.read_masks(1)  # Read the mask of the first band
+        data = dataset.read(1)  
+        mask = dataset.read_masks(1)  
 
-        # Determine the coordinates for rows and columns that have data
         rows, cols = np.nonzero(mask)
 
-        # Calculate the coordinates of these points in geographic space
         if rows.size > 0 and cols.size > 0:
-            # Transform row and column indices to geographic coordinates
             x_coords, y_coords = dataset.transform * (cols, rows)
 
-            # Calculate the bounds: min/max of the coordinates
             min_x, max_x = x_coords.min(), x_coords.max()
             min_y, max_y = y_coords.min(), y_coords.max()
         else:
-            # If no data is found, return None or an appropriate response
             return None
 
     return min_x, min_y, max_x, max_y
 
 
 def calculate_x_y_distances(lat1, lon1, lat2, lon2):
-    # Radius of Earth in kilometers
     R = 6371 * 1000
 
-    # Convert degrees to radians for the calculations
     lat1_rad = math.radians(lat1)
     lat2_rad = math.radians(lat2)
     delta_lat = lat2 - lat1
     delta_lon = lon2 - lon1
 
-    # Convert differences in latitude and longitude from degrees to radians
     delta_lat_rad = math.radians(delta_lat)
     delta_lon_rad = math.radians(delta_lon)
 
-    # Calculate distances
     y_distance = (delta_lat_rad * R)/1000
     x_distance = (delta_lon_rad * R * math.cos((lat1_rad + lat2_rad) / 2))/1000
 
@@ -64,7 +54,6 @@ def calc_circumference(major_axis, minor_axis):
     return math.pi * (a + b) * (1 + (3 * h) / (10 + math.sqrt(4 - 3 * h)))
 
 def find_optimal_elliptical_path(x_dist, y_dist, spread_rate, drone_speed=50):
-    # Convert spread rate to km/s for consistency in units
     spread_rate_km_s = spread_rate * 0.0003048 / 60 / 60
     # print(x_dist, y_dist)
     initial_major_axis = y_dist/2
@@ -75,7 +64,7 @@ def find_optimal_elliptical_path(x_dist, y_dist, spread_rate, drone_speed=50):
     optimal_drone_time = 0
     major_axis = initial_major_axis + 0.01
     minor_axis = initial_minor_axis + 0.01
-    increment = 0.001  # Adjustment increment for minor axis
+    increment = 0.001  
 
     while minor_axis > 0:
         initial_circumference = calc_circumference(major_axis, minor_axis)
@@ -95,7 +84,7 @@ def find_optimal_elliptical_path(x_dist, y_dist, spread_rate, drone_speed=50):
             smallest_circumference = initial_circumference
             optimal_drone_time = drone_time_to_cover
 
-        minor_axis -= increment  # Try a smaller minor axis
+        minor_axis -= increment  
         major_axis -= increment
     return smallest_circumference, optimal_drone_time
 
@@ -111,7 +100,7 @@ def find_optimal_elliptical_path_after_suppressant(x_dist_n, y_dist_n, spread_ra
     optimal_drone_time = 0
     major_axis = initial_major_axis + 0.01
     minor_axis = initial_minor_axis + 0.01
-    increment = 0.001  # Adjustment increment for minor axis
+    increment = 0.001  #
 
     while minor_axis > 0:
         initial_circumference = calc_circumference(major_axis, minor_axis)
@@ -130,7 +119,6 @@ def find_optimal_elliptical_path_after_suppressant(x_dist_n, y_dist_n, spread_ra
             smallest_circumference = initial_circumference
             optimal_drone_time = drone_time_to_cover
 
-          # Try a smaller minor axis
         minor_axis -= 0.0001
         major_axis -=increment
     return smallest_circumference, optimal_drone_time
@@ -146,26 +134,21 @@ def convert_utm_to_lat_lon_from_file2(x, y, input_crs='epsg:32610', output_crs='
 def plot_fire_ellipse_and_drone_path(major_axis, minor_axis, start_coords, end_coords):
     fig, ax = plt.subplots()
 
-    # Calculate the center of the ellipse for plotting
     center_x = (start_coords[0] + end_coords[0]) / 2
     center_y = (start_coords[1] + end_coords[1]) / 2
 
-    # Ellipse representing the fire area
     ellipse = Ellipse((center_x, center_y), width=2*major_axis, height=2*minor_axis, 
                       edgecolor='red', facecolor='none', label='Fire Area')
     ax.add_patch(ellipse)
 
-    # Calculating the drone path as a slightly larger ellipse
     drone_path_ellipse = Ellipse((center_x, center_y), width=2*major_axis*1.05, height=2*minor_axis*1.05,
                                  edgecolor='blue', linestyle='--', facecolor='none', label='Drone Path')
     ax.add_patch(drone_path_ellipse)
 
-    # Setting plot limits
-    ax.set_xlim(center_x - major_axis*3, center_x + major_axis*3)
-    ax.set_ylim(center_y - minor_axis*3, center_y + minor_axis*3)
+    ax.set_xlim(center_x - major_axis*5, center_x + major_axis*5)
+    ax.set_ylim(center_y - minor_axis*5, center_y + minor_axis*5)
     ax.set_aspect('equal', 'box')
 
-    # Adding grid, legend, and labels
     plt.grid(True)
     plt.legend()
     plt.title('Visualization of Fire Area and Drone Path')
@@ -229,7 +212,7 @@ def calculate_phoschek_needs(length_m, width_m, application_rate_l_per_m2=1):
 
     """
 
-    # Constants
+
 
     LITERS_PER_GALLON = 3.785
 
@@ -241,31 +224,26 @@ def calculate_phoschek_needs(length_m, width_m, application_rate_l_per_m2=1):
 
 
 
-    # Calculate the total area
 
     area_m2 = length_m * width_m
 
     
 
-    # Calculate the total liters of mixed retardant needed
 
     total_liters_needed = area_m2 * application_rate_l_per_m2
 
     
 
-    # Convert liters to gallons for the total mixed retardant needed
 
     total_gallons_needed = total_liters_needed / LITERS_PER_GALLON
 
     
 
-    # Calculate the amount of concentrate needed based on the mix ratio
 
     gallons_of_concentrate = total_gallons_needed / TOTAL_MIX_FROM_ONE_GAL_CONCENTRATE
 
     
 
-    # Calculate the weight of the concentrate
 
     weight_of_concentrate = gallons_of_concentrate * WEIGHT_PER_GAL_CONCENTRATE
 
@@ -285,7 +263,7 @@ def calculate_phoschek_needs(length_m, width_m, application_rate_l_per_m2=1):
 
 
 def main():
-    filepath = 'models/03-real-fuels/outputs/vs_0000001_0000817.tif'
+    filepath = 'models/03-real-fuels/outputs/vs_0000001_0000815.tif'
     lat2_utm, lon1_utm, lat1_utm, lon2_utm = get_raster_data_bounds(filepath)
     # print(lon1_utm, lat1_utm, lon2_utm, lat2_utm)
     lat1,lon1 = convert_utm_to_lat_lon_from_file2(lat1_utm,lon1_utm)
