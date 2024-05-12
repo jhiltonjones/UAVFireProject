@@ -14,7 +14,7 @@ from pyproj import Geod
 from pyproj import Transformer
 import os
 from overlaymaps import overlay_raster_at_point, display_location_on_raster_utm, convert_lat_lon_to_utm
-
+from calculate_multiagent_supressant import get_raster_data_bounds, calculate_x_y_distances, calc_circumference, find_optimal_elliptical_path, plot_fire_ellipse_and_drone_path,calculate_phoschek_needs, convert_utm_to_lat_lon_from_file2, find_optimal_elliptical_path_after_suppressant
 
 csv_file_path = './models/03-real-fuels/outputs/fire_size_stats.csv' 
 dronepositionpath = './configs/drone_coordinates.txt'
@@ -83,7 +83,7 @@ def convert_utm_to_lat_lon_from_file(center_lon, center_lat, filepath, input_crs
     return results
 
 
-def calculate_drone_travel_time(center_lon, center_lat, drone_positions, drone_speed=60):
+def calculate_drone_travel_time_fastest(center_lon, center_lat, drone_positions, drone_speed=60):
 
     geod = Geod(ellps="WGS84")
     min_time = float('inf')
@@ -105,8 +105,28 @@ def calculate_drone_travel_time(center_lon, center_lat, drone_positions, drone_s
 
     # print(f"\nThe fastest drone is {fastest_drone} with a travel time of {min_time:.2f} minutes.")
     return fastest_drone, min_time
+def calculate_drone_travel_times(center_lon, center_lat, drone_positions, drone_speed=60):
+    geod = Geod(ellps="WGS84")
+    drone_travel_times = {}
+    max_time = 0
+    slowest_drone = None
 
+    for drone, (lon, lat) in drone_positions.items():
+        _, _, distance = geod.inv(center_lon, center_lat, lon, lat)
+        distance_km = distance / 1000
+        travel_time_minutes = (distance_km / drone_speed) * 60
 
+        # Store each drone's travel time in the dictionary
+        drone_travel_times[drone] = travel_time_minutes
+
+        # Identify the slowest drone
+        if travel_time_minutes > max_time:
+            max_time = travel_time_minutes
+            slowest_drone = drone
+
+        print(f"{drone} is {distance_km:.2f} km away from the target, travel time: {travel_time_minutes:.2f} minutes.")
+
+    return slowest_drone, max_time, drone_travel_times
 
 def log_fire_data(csv_path, fire_data):
     """
@@ -347,40 +367,40 @@ def display_raster(tif_file_path):
         plt.show()
 
 
-def find_minimal_effective_circle(fire_area, spread_rate, drone_speed=50):
-    """Find the minimal effective circle the drone can circle, adjusting for fire spread.
+# def find_minimal_effective_circle(fire_area, spread_rate, drone_speed=50):
+#     """Find the minimal effective circle the drone can circle, adjusting for fire spread.
 
-    Args:
-    fire_area (float): Initial fire area in square kilometers.
-    spread_rate (float): Rate of spread of the fire in feet per minute.
-    drone_speed (float): Speed of the drone in km/h.
+#     Args:
+#     fire_area (float): Initial fire area in square kilometers.
+#     spread_rate (float): Rate of spread of the fire in feet per minute.
+#     drone_speed (float): Speed of the drone in km/h.
 
-    Returns:
-    float: Optimal circumference in km that allows the drone to complete its round.
-    """
-    fire_area_km = fire_area * 0.00404686
-    spread_rate_km_s = spread_rate * 0.0003048 / 60 / 60
+#     Returns:
+#     float: Optimal circumference in km that allows the drone to complete its round.
+#     """
+#     fire_area_km = fire_area * 0.00404686
+#     spread_rate_km_s = spread_rate * 0.0003048 / 60 / 60
 
-    initial_radius = math.sqrt(fire_area_km / math.pi)
-    increment = 0.01  
+#     initial_radius = math.sqrt(fire_area_km / math.pi)
+#     increment = 0.01  
 
-    radius = initial_radius + 0.001  
-    while True:
-        circumference = 2 * math.pi * radius
-        drone_time_to_cover = circumference / (drone_speed / 3600)  
+#     radius = initial_radius + 0.001  
+#     while True:
+#         circumference = 2 * math.pi * radius
+#         drone_time_to_cover = circumference / (drone_speed / 3600)  
 
-        additional_area = spread_rate_km_s * drone_time_to_cover
-        new_fire_area = math.pi * radius ** 2 + additional_area
-        new_radius = math.sqrt(new_fire_area / math.pi)
+#         additional_area = spread_rate_km_s * drone_time_to_cover
+#         new_fire_area = math.pi * radius ** 2 + additional_area
+#         new_radius = math.sqrt(new_fire_area / math.pi)
 
-        if new_radius > radius:
-            break
+#         if new_radius > radius:
+#             break
 
-        radius -= increment
+#         radius -= increment
 
-    final_circumference = 2 * math.pi * radius
-    final_drone_time_to_cover = final_circumference / (drone_speed / 3600)
-    return final_circumference, final_drone_time_to_cover
+#     final_circumference = 2 * math.pi * radius
+#     final_drone_time_to_cover = final_circumference / (drone_speed / 3600)
+#     return final_circumference, final_drone_time_to_cover
     
 def main():
     script_directory = 'models/03-real-fuels'
@@ -397,7 +417,8 @@ def main():
         center_lon, center_lat = read_center_info(file_path = './models/04-fire-potential/01-run.sh')
         converted_coords = convert_utm_to_lat_lon_from_file(center_lon, center_lat, dronepositionpath)
         # cen_lon, cen_lat = readcenterinfo(file_path = '/home/jack/elmfire/tutorials/04-fire-potential/01-run.sh')
-        fastest_drone, travel_time = calculate_drone_travel_time(lon, lat, converted_coords)
+        fastest_drone, travel_time = calculate_drone_travel_time_fastest(lon, lat, converted_coords)
+        
         print(travel_time)
         modify_bash_script(script_path, lon, lat, travel_time)
         modify_txt_in(script_path2, lon, lat, travel_time)
@@ -415,6 +436,8 @@ def main():
         for data in csv_data:
                 fire_area = float(data['Total Fire Area (ac)'])
         print(fire_area, round_average_spread)
+        if fire_area < 0.2:
+            return
         optimal_circumference, drone_suppressant_time = find_minimal_effective_circle(fire_area, round_average_spread)
         print(optimal_circumference, drone_suppressant_time)
         if average_spread > 150:
@@ -450,7 +473,56 @@ def main():
         overlay_raster_at_point(base_raster_path, tif_file_path)
         # utm_x, utm_y = convert_lat_lon_to_utm(lon, lat)
         # display_location_on_raster_utm(base_raster_path, utm_x, utm_y)
+        lat2_utm, lon1_utm, lat1_utm, lon2_utm = get_raster_data_bounds(tif_file_path)
+        # print(lon1_utm, lat1_utm, lon2_utm, lat2_utm)
+        lat1,lon1 = convert_utm_to_lat_lon_from_file2(lat1_utm,lon1_utm)
+        lat2,lon2= convert_utm_to_lat_lon_from_file2(lat2_utm,lon2_utm)
+        print( lon1, lon2, lat1, lat2)
+        start_coords = lon1,lat1
+        end_coords = lon2, lat2
+        x_dist, y_dist = calculate_x_y_distances(lon1, lat1, lon2, lat2)
+        # distance = haversine_distance(start_coords, end_coords)
+        print(f"x distance: {x_dist} y distance: {y_dist}")
+        fire_area = 0.008  # square kilometers
+        spread_rate = 30  # feet per minute
 
+        result = find_optimal_elliptical_path(x_dist, y_dist, spread_rate)
+        print(f"Optimal Circumference: {result[0]} km, Drone Time: {result[1]} seconds")
+        major_axis = x_dist/2
+        minor_axis = y_dist/2
+        plot_fire_ellipse_and_drone_path(major_axis, minor_axis, start_coords, end_coords)
+        # plot_fire_ellipse_and_drone_path_on_raster(major_axis, minor_axis, start_coords, end_coords, filepath)
+        length = result[0] * 1000  # in meters
+        width = 10  # in meters
+        results = calculate_phoschek_needs(length, width)
+        print(results)
+        
+        
+        slowest_drone, max_travel_time, all_travel_times = calculate_drone_travel_times(center_lon, center_lat, converted_coords)            
+        modify_bash_script(script_path, lon, lat, max_travel_time)
+        modify_txt_in(script_path2, lon, lat, max_travel_time)
+        
+        run_script('01-run.sh')
+        tif_file_path = get_first_matching_file(tif_file_pattern)
+        lat2_utm, lon1_utm, lat1_utm, lon2_utm = get_raster_data_bounds(tif_file_path)
+        # print(lon1_utm, lat1_utm, lon2_utm, lat2_utm)
+        lat12,lon12 = convert_utm_to_lat_lon_from_file2(lat1_utm,lon1_utm)
+        lat22,lon22= convert_utm_to_lat_lon_from_file2(lat2_utm,lon2_utm)
+        print( lon12, lon22, lat12, lat22)
+        start_coords = lon12,lat12
+        end_coords = lon12, lat2
+        x_dist_n, y_dist_n = calculate_x_y_distances(lon1, lat12, lon2, lat22)
+        # distance = haversine_distance(start_coords, end_coords)
+        print(f"x distance: {x_dist_n} y distance: {y_dist_n}")
+        result = find_optimal_elliptical_path(x_dist_n, y_dist_n, spread_rate)
+        print(f"Optimal Circumference: {result[0]} km, Drone Time: {result[1]} seconds")
+        # major_axis = x_dist_n/2
+        # minor_axis = y_dist_n/2
+        # plot_fire_ellipse_and_drone_path(major_axis, minor_axis, start_coords, end_coords)
+        length = result[0] * 1000  # in meters
+        width = 10  # in meters
+        results = calculate_phoschek_needs(length, width)
+        print(results)
     else:
         print("Failed to read configuration or parse longitude/latitude.")
 
