@@ -366,7 +366,15 @@ def display_raster(tif_file_path):
         plt.title('Raster Image')
         plt.show()
 
-
+def launch_gui(result, x_dist_n, y_dist_n, results):
+    root2= tk.Tk()
+    root2.title("Results Display")
+    info = f"Optimal Circumference: {result[0]:.2f} km\nDrone Time: {result[1]:.2f} seconds\nx-distance: {x_dist_n:.2f} meters\ny-distance: {y_dist_n:.2f} meters\nPhos-Chek Needs: {results}"
+    label = tk.Label(root2, text=info, padx=10, pady=10)
+    label.pack()
+    button = tk.Button(root2, text="Close", command=root2.destroy)
+    button.pack(pady=20)
+    root2.mainloop()
 # def find_minimal_effective_circle(fire_area, spread_rate, drone_speed=50):
 #     """Find the minimal effective circle the drone can circle, adjusting for fire spread.
 
@@ -436,10 +444,38 @@ def main():
         for data in csv_data:
                 fire_area = float(data['Total Fire Area (ac)'])
         print(fire_area, round_average_spread)
-        if fire_area < 0.2:
-            return
-        optimal_circumference, drone_suppressant_time = find_minimal_effective_circle(fire_area, round_average_spread)
-        print(optimal_circumference, drone_suppressant_time)
+                # display_raster(tif_file_path)
+        overlay_raster_at_point(base_raster_path, tif_file_path)
+        # utm_x, utm_y = convert_lat_lon_to_utm(lon, lat)
+        # display_location_on_raster_utm(base_raster_path, utm_x, utm_y)
+        lat2_utm, lon1_utm, lat1_utm, lon2_utm = get_raster_data_bounds(tif_file_path)
+        # print(lon1_utm, lat1_utm, lon2_utm, lat2_utm)
+        lat1,lon1 = convert_utm_to_lat_lon_from_file2(lat1_utm,lon1_utm)
+        lat2,lon2= convert_utm_to_lat_lon_from_file2(lat2_utm,lon2_utm)
+        print( lon1, lon2, lat1, lat2)
+        start_coords = lon1,lat1
+        end_coords = lon2, lat2
+        x_dist, y_dist = calculate_x_y_distances(lon1, lat1, lon2, lat2)
+        # distance = haversine_distance(start_coords, end_coords)
+        print(f"x distance: {x_dist} y distance: {y_dist}")
+        fire_area = 0.008  # square kilometers
+        spread_rate = average_spread  # feet per minute
+
+        result = find_optimal_elliptical_path(x_dist, y_dist, spread_rate)
+        print(f"Optimal Circumference: {result[0]} km, Drone Time: {result[1]} seconds")
+        major_axis = x_dist/2
+        minor_axis = y_dist/2
+        plot_fire_ellipse_and_drone_path(major_axis, minor_axis, start_coords, end_coords)
+        # plot_fire_ellipse_and_drone_path_on_raster(major_axis, minor_axis, start_coords, end_coords, filepath)
+        length = result[0] * 1000  # in meters
+        width = 10  # in meters
+        results = calculate_phoschek_needs(length, width)
+        print(results)
+        drone_suppressant_time = result[1]
+        optimal_circumference = result[0]
+
+        # optimal_circumference, drone_suppressant_time = find_minimal_effective_circle(fire_area, round_average_spread)
+        # print(optimal_circumference, drone_suppressant_time)
         if average_spread > 150:
             priority = 5
         elif average_spread > 100:
@@ -468,34 +504,8 @@ def main():
                 
                 update_fire_stats(lon, lat, fire_volume, fire_area, average_spread, priority, fastest_drone, travel_time, optimal_circumference, drone_suppressant_time)
         create_gui(csv_data)
-        
-        # display_raster(tif_file_path)
-        overlay_raster_at_point(base_raster_path, tif_file_path)
-        # utm_x, utm_y = convert_lat_lon_to_utm(lon, lat)
-        # display_location_on_raster_utm(base_raster_path, utm_x, utm_y)
-        lat2_utm, lon1_utm, lat1_utm, lon2_utm = get_raster_data_bounds(tif_file_path)
-        # print(lon1_utm, lat1_utm, lon2_utm, lat2_utm)
-        lat1,lon1 = convert_utm_to_lat_lon_from_file2(lat1_utm,lon1_utm)
-        lat2,lon2= convert_utm_to_lat_lon_from_file2(lat2_utm,lon2_utm)
-        print( lon1, lon2, lat1, lat2)
-        start_coords = lon1,lat1
-        end_coords = lon2, lat2
-        x_dist, y_dist = calculate_x_y_distances(lon1, lat1, lon2, lat2)
-        # distance = haversine_distance(start_coords, end_coords)
-        print(f"x distance: {x_dist} y distance: {y_dist}")
-        fire_area = 0.008  # square kilometers
-        spread_rate = 30  # feet per minute
 
-        result = find_optimal_elliptical_path(x_dist, y_dist, spread_rate)
-        print(f"Optimal Circumference: {result[0]} km, Drone Time: {result[1]} seconds")
-        major_axis = x_dist/2
-        minor_axis = y_dist/2
-        plot_fire_ellipse_and_drone_path(major_axis, minor_axis, start_coords, end_coords)
-        # plot_fire_ellipse_and_drone_path_on_raster(major_axis, minor_axis, start_coords, end_coords, filepath)
-        length = result[0] * 1000  # in meters
-        width = 10  # in meters
-        results = calculate_phoschek_needs(length, width)
-        print(results)
+
         
         
         slowest_drone, max_travel_time, all_travel_times = calculate_drone_travel_times(center_lon, center_lat, converted_coords)            
@@ -523,8 +533,13 @@ def main():
         width = 10  # in meters
         results = calculate_phoschek_needs(length, width)
         print(results)
+        launch_gui(result, x_dist_n, y_dist_n, results)
+
+
     else:
         print("Failed to read configuration or parse longitude/latitude.")
+    
+
 
 if __name__ == "__main__":
     main()

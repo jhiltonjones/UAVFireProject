@@ -161,8 +161,8 @@ def plot_fire_ellipse_and_drone_path(major_axis, minor_axis, start_coords, end_c
     ax.add_patch(drone_path_ellipse)
 
     # Setting plot limits
-    ax.set_xlim(center_x - major_axis*1.2, center_x + major_axis*1.2)
-    ax.set_ylim(center_y - minor_axis*1.2, center_y + minor_axis*1.2)
+    ax.set_xlim(center_x - major_axis*3, center_x + major_axis*3)
+    ax.set_ylim(center_y - minor_axis*3, center_y + minor_axis*3)
     ax.set_aspect('equal', 'box')
 
     # Adding grid, legend, and labels
