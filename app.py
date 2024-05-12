@@ -8,12 +8,9 @@ import sys
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler  
 from flask import request, flash
-from simfire.sim.simulation import FireSimulation
-from simfire.utils.config import Config
 
 app = Flask("webpage.html", template_folder = './')
 app.secret_key = '%$6£&^&^HDIO76%^%£"^7'
-config_path = './configs/model_configs.yml'
 
 model = pickle.load(open('./models/model.pkl', 'rb'))
 scaler = pickle.load(open('./models/scaler.pkl', 'rb'))
@@ -93,27 +90,15 @@ def run_fire_script():
     except subprocess.CalledProcessError as e:
         app.logger.error(f"Failed to execute the fire prediction script: {str(e)}")
 
-def gif(config_path):
-    config = Config(config_path)
-    sim = FireSimulation(config)
-    sim.rendering = True
-    # display(output_widget, "Running SimFire...")
-    sim.run('10m') # TODO: Add multi-threading
-    sim.save_gif()
-    sim.rendering = False
-    # display(output_widget, "Finished running SimFire.")
-
 @app.route('/run_script', methods=['POST'])
 def run_script():
-    global config_path
     if 'submit_button' in request.form:
         if request.form['submit_button'] == 'Run Drone Clustering':
             script_path = './cluster.py'
         elif request.form['submit_button'] == 'Fire History':
             script_path = './firetable.py'
-        elif request.form['submit_button'] == 'Process GIF':
-            script_path = ''
-            gif(config_path)   
+        elif request.form['submit_button'] == 'Practice Tool Arena':
+            script_path = './suppression.py'  
         
         if script_path:
             try:
