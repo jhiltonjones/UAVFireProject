@@ -64,18 +64,29 @@ def mitigate(agent, sim, step, x, y, current_mitigation):
     
     return mitigations
 
-def move(sim, step, x, y, hr, min, sec):
+def check_edge(agent, x, grid):
+    if (agent + x >= grid):
+        x = grid - agent - 1
+    elif (agent + x < 0):
+        x = -agent
+
+    return x
+
+def move(sim, step, x, y, hr, min, sec, grid):
     global agents, current_mitigation, realtime, count_min, agent_timesteps
     
     agents_move = []
     mitigations = []
 
     for agent in agents:
+        x_new = check_edge(agent[0], x, grid[1])
+        y_new = check_edge(agent[1], y, grid[0])
+
         if current_mitigation:
-            mitigations += mitigate(agent, sim, step, x, y, current_mitigation)
-        agent = (agent[0] + x, agent[1] + y, agent[2])
+            mitigations += mitigate(agent, sim, step, x_new, y_new, current_mitigation)
+        agent = (agent[0] + x_new, agent[1] + y_new, agent[2])
         agents_move.append(agent)
-        
+
 
     agents = agents_move
     sim.update_agent_positions(agents)
@@ -165,7 +176,8 @@ def controls():
 
     config = Config(config_path)
     sim = custom_sim(config)
-    step = round(unit_converter(sim.getFiremap().shape, speed) * agent_timesteps)
+    grid = sim.getFiremap().shape
+    step = round(unit_converter(grid, speed) * agent_timesteps)
 
     # Timer
     timer_frame = tk.Frame(root)
@@ -207,28 +219,28 @@ def controls():
     buttons = tk.Frame(mid_frame)
     buttons.pack(padx=5, pady=5)
 
-    up_button = tk.Button(buttons, text="N", command=lambda: move(sim, step, 0, -step, hr, min, sec))
+    up_button = tk.Button(buttons, text="N", command=lambda: move(sim, step, 0, -step, hr, min, sec, grid))
     up_button.grid(row=0, column=1)
 
-    left_button = tk.Button(buttons, text="W", command=lambda: move(sim, step, -step, 0, hr, min, sec))
+    left_button = tk.Button(buttons, text="W", command=lambda: move(sim, step, -step, 0, hr, min, sec, grid))
     left_button.grid(row=1, column=0)
 
-    right_button = tk.Button(buttons, text="E", command=lambda: move(sim, step, step, 0, hr, min, sec))
+    right_button = tk.Button(buttons, text="E", command=lambda: move(sim, step, step, 0, hr, min, sec, grid))
     right_button.grid(row=1, column=2)
 
-    down_button = tk.Button(buttons, text="S", command=lambda: move(sim, step, 0, step, hr, min, sec))
+    down_button = tk.Button(buttons, text="S", command=lambda: move(sim, step, 0, step, hr, min, sec, grid))
     down_button.grid(row=2, column=1)
 
-    nw_button = tk.Button(buttons, text="NW", command=lambda: move(sim, step, -step, -step, hr, min, sec))
+    nw_button = tk.Button(buttons, text="NW", command=lambda: move(sim, step, -step, -step, hr, min, sec, grid))
     nw_button.grid(row=0, column=0)
 
-    ne_button = tk.Button(buttons, text="NE", command=lambda: move(sim, step, step, -step, hr, min, sec))
+    ne_button = tk.Button(buttons, text="NE", command=lambda: move(sim, step, step, -step, hr, min, sec, grid))
     ne_button.grid(row=0, column=2)
 
-    sw_button = tk.Button(buttons, text="SW", command=lambda: move(sim, step, -step, step, hr, min, sec))
+    sw_button = tk.Button(buttons, text="SW", command=lambda: move(sim, step, -step, step, hr, min, sec, grid))
     sw_button.grid(row=2, column=0)
 
-    se_button = tk.Button(buttons, text="SE", command=lambda: move(sim, step, step, step, hr, min, sec))
+    se_button = tk.Button(buttons, text="SE", command=lambda: move(sim, step, step, step, hr, min, sec, grid))
     se_button.grid(row=2, column=2)
 
     # Mitigations Buttons
