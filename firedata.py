@@ -583,7 +583,6 @@ def main():
         modify_txt_in(script_path2, lon, lat, max_time)
         multiagentcomment = "The fire will require multiagent suppressant. Running prediction of fire size for all agents to travel to fire."
         launch_gui_not_a_fire(multiagentcomment)
-        time.sleep(2)
         run_script_with_gui('01-run.sh')
         tif_file_path = get_first_matching_file(tif_file_pattern)
         lat2_utm, lon1_utm, lat1_utm, lon2_utm = get_raster_data_bounds(tif_file_path)
