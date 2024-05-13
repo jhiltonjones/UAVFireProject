@@ -37,5 +37,5 @@ def create_gui(csv_path):
     
     root.mainloop()
 
-csv_path = './out/fire_log'  
+csv_path = './out/fire_log3'  
 create_gui(csv_path)
