@@ -529,7 +529,7 @@ def main():
             launch_gui(result, x_dist, y_dist, results)
             return
 
-        
+        launch_gui(result, x_dist, y_dist, results)
         
         slowest_drone, max_travel_time, all_travel_times = calculate_drone_travel_times(center_lon, center_lat, converted_coords)            
         modify_bash_script(script_path, lon, lat, max_travel_time)
