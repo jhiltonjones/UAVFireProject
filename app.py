@@ -9,7 +9,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler  
 from flask import request, flash
 
-app = Flask("webpage.html", template_folder = './')
+app = Flask("webpage.html", template_folder = './', static_url_path='/out/simfire')
 app.secret_key = '%$6£&^&^HDIO76%^%£"^7'
 
 model = pickle.load(open('./models/model.pkl', 'rb'))
@@ -111,7 +111,7 @@ def run_script():
         else:
             flash("No valid script selected", 'error')
             
-    return render_template('webpage.html')
+    return render_template('webpage.html', image = 'out/simfire/out.gif')
 
 @app.route('/trigger_prediction')
 
@@ -135,7 +135,7 @@ def auto_trigger_prediction():
         trigger_prediction()
 @app.route('/')
 def index():
-    return render_template('webpage.html')
+    return render_template('webpage.html', image = 'out/simfire/out.gif')
 
 if __name__ == '__main__':
     watcher_thread = FileWatcher()
