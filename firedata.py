@@ -13,13 +13,8 @@ import math
 from pyproj import Geod
 from pyproj import Transformer
 import os
-<<<<<<< HEAD
 from overlaymaps import overlay_raster_at_point, reproject_raster, check_crs
-from calculate_multiagent_supressant import get_raster_data_bounds, calculate_x_y_distances, calc_circumference, find_optimal_elliptical_path, plot_fire_ellipse_and_drone_path,calculate_phoschek_needs, convert_utm_to_lat_lon_from_file2, find_optimal_elliptical_path_after_suppressant
-=======
-from overlaymaps import overlay_raster_at_point, display_location_on_raster_utm, convert_lat_lon_to_utm
 from multisuppressant import get_raster_data_bounds, calculate_x_y_distances, calc_circumference, find_optimal_elliptical_path, plot_fire_ellipse_and_drone_path,calculate_phoschek_needs, convert_utm_to_lat_lon_from_file2, find_optimal_elliptical_path_after_suppressant
->>>>>>> ff6c280ab6c5ab7720a2320bddc00ce0344b2761
 
 csv_file_path = './models/03-real-fuels/outputs/fire_size_stats.csv' 
 dronepositionpath = './configs/drone_coordinates.txt'
@@ -93,23 +88,28 @@ def calculate_drone_travel_time_fastest(center_lon, center_lat, drone_positions,
     geod = Geod(ellps="WGS84")
     min_time = float('inf')
     fastest_drone = None
-    
+    max_time = 0
+    slowest_drone = None
     # print(f"Target coordinates: Longitude = {center_lon}, Latitude = {center_lat}")
     # print("\nDistances to the target location:")
     for drone, (lon, lat) in drone_positions.items():
         _, _, distance = geod.inv(center_lon, center_lat, lon, lat)
         distance_km = distance / 1000  
 
-        # print(f"{drone} is {distance_km:.2f} km away from the target.")
+        print(f"{drone} is {distance_km:.2f} km away from the target.")
 
         travel_time_minutes = (distance_km / drone_speed) * 60
 
         if travel_time_minutes < min_time:
             min_time = travel_time_minutes
             fastest_drone = drone
+        elif travel_time_minutes > max_time:
+            max_time = travel_time_minutes
+            slowest_drone = drone
 
+        print(f"{drone} is {distance_km:.2f} km away from the target, travel time: {travel_time_minutes:.2f} minutes.")
     # print(f"\nThe fastest drone is {fastest_drone} with a travel time of {min_time:.2f} minutes.")
-    return fastest_drone, min_time
+    return fastest_drone, min_time, slowest_drone, max_time
 def calculate_drone_travel_times(center_lon, center_lat, drone_positions, drone_speed=60):
     geod = Geod(ellps="WGS84")
     drone_travel_times = {}
@@ -439,7 +439,7 @@ def main():
         center_lon, center_lat = read_center_info(file_path = './models/04-fire-potential/01-run.sh')
         converted_coords = convert_utm_to_lat_lon_from_file(center_lon, center_lat, dronepositionpath)
         # cen_lon, cen_lat = readcenterinfo(file_path = '/home/jack/elmfire/tutorials/04-fire-potential/01-run.sh')
-        fastest_drone, travel_time = calculate_drone_travel_time_fastest(lon, lat, converted_coords)
+        fastest_drone, travel_time, slowest_drone, max_time = calculate_drone_travel_time_fastest(lon, lat, converted_coords)
         
         print(travel_time)
         modify_bash_script(script_path, lon, lat, travel_time)
@@ -554,9 +554,9 @@ def main():
 
         launch_gui(result, x_dist, y_dist, results)
         
-        slowest_drone, max_travel_time, all_travel_times = calculate_drone_travel_times(center_lon, center_lat, converted_coords)            
-        modify_bash_script(script_path, lon, lat, max_travel_time)
-        modify_txt_in(script_path2, lon, lat, max_travel_time)
+        # slowest_drone, max_time = calculate_drone_travel_time_fastest(lon, lat, converted_coords)            
+        modify_bash_script(script_path, lon, lat, max_time)
+        modify_txt_in(script_path2, lon, lat, max_time)
         
         run_script('01-run.sh')
         tif_file_path = get_first_matching_file(tif_file_pattern)
