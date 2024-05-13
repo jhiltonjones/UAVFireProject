@@ -13,7 +13,7 @@ import math
 from pyproj import Geod
 from pyproj import Transformer
 import os
-from overlaymaps import overlay_raster_at_point, display_location_on_raster_utm, convert_lat_lon_to_utm
+from overlaymaps import overlay_raster_at_point, reproject_raster, check_crs
 from calculate_multiagent_supressant import get_raster_data_bounds, calculate_x_y_distances, calc_circumference, find_optimal_elliptical_path, plot_fire_ellipse_and_drone_path,calculate_phoschek_needs, convert_utm_to_lat_lon_from_file2, find_optimal_elliptical_path_after_suppressant
 
 csv_file_path = './models/03-real-fuels/outputs/fire_size_stats.csv' 
@@ -447,6 +447,7 @@ def main():
         print(average_fire_spread_tif)
         tif_file_pattern = os.path.join(script_directory, 'outputs', 'time_of_arrival*.tif')
         tif_file_path = get_first_matching_file(tif_file_pattern)
+        overlay_raster_path = tif_file_path
         average_spread = read_average_fire_spread(average_fire_spread_tif)
         round_average_spread = round(average_spread,2)
         csv_data = read_csv(csv_path)
@@ -459,9 +460,26 @@ def main():
         
         print(fire_area, round_average_spread)
                 # display_raster(tif_file_path)
-        overlay_raster_at_point(base_raster_path, tif_file_path)
-        # utm_x, utm_y = convert_lat_lon_to_utm(lon, lat)
-        # display_location_on_raster_utm(base_raster_path, utm_x, utm_y)
+        desired_crs = 'EPSG:32610'
+        base_raster_crs = check_crs(base_raster_path)
+        overlay_raster_crs = check_crs(overlay_raster_path)
+
+        if base_raster_crs != desired_crs:
+            new_base_raster_path = os.path.splitext(base_raster_path)[0] + '_reprojected.tif'
+            reproject_raster(base_raster_path, new_base_raster_path, desired_crs)
+            base_raster_path = new_base_raster_path
+
+        if overlay_raster_crs != desired_crs:
+            new_overlay_raster_path = os.path.splitext(overlay_raster_path)[0] + '_reprojected.tif'
+            reproject_raster(overlay_raster_path, new_overlay_raster_path, desired_crs)
+            overlay_raster_path = new_overlay_raster_path
+        
+        base_raster_crs = check_crs(base_raster_path)
+        overlay_raster_crs = check_crs(overlay_raster_path)
+
+        print("Base Raster CRS:", base_raster_crs)
+        print("Overlay Raster CRS:", overlay_raster_crs)
+        overlay_raster_at_point(base_raster_path, overlay_raster_path)
         lat2_utm, lon1_utm, lat1_utm, lon2_utm = get_raster_data_bounds(tif_file_path)
         # print(lon1_utm, lat1_utm, lon2_utm, lat2_utm)
         lat1,lon1 = convert_utm_to_lat_lon_from_file2(lat1_utm,lon1_utm)
