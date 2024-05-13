@@ -157,37 +157,6 @@ def plot_fire_ellipse_and_drone_path(major_axis, minor_axis, start_coords, end_c
     plt.show()
 
 
-# def plot_fire_ellipse_and_drone_path_on_raster(major_axis, minor_axis, start_coords, end_coords, raster_path):
-#     with rasterio.open(raster_path) as src:
-#         fig, ax = plt.subplots(figsize=(10, 10))
-#         show(src, ax=ax, title="Raster with Fire Area and Drone Path")
-
-#         # Ensure transformation from geographic (lat, lon) to UTM
-#         transformer = Transformer.from_crs("epsg:4326", "epsg:32610", always_xy=True)
-#         start_x_utm, start_y_utm = transformer.transform(start_coords[1], start_coords[0])  # lat, lon to lon, lat
-#         end_x_utm, end_y_utm = transformer.transform(end_coords[1], end_coords[0])
-
-#         print("Corrected UTM Coordinates:", start_x_utm, start_y_utm, end_x_utm, end_y_utm)
-
-#         center_x = (start_x_utm + end_x_utm) / 2
-#         center_y = (start_y_utm + end_y_utm) / 2
-#         center_x_pixel, center_y_pixel = ~src.transform * (center_x, center_y)
-
-#         if not (0 <= center_x_pixel < src.width and 0 <= center_y_pixel < src.height):
-#             print("Error: Calculated pixel coordinates are out of raster bounds.")
-#             return
-
-#         ellipse = Ellipse((center_x_pixel, center_y_pixel), width=2*major_axis, height=2*minor_axis, edgecolor='red', facecolor='none', label='Fire Area')
-#         ax.add_patch(ellipse)
-#         drone_path_ellipse = Ellipse((center_x_pixel, center_y_pixel), width=2*major_axis*1.05, height=2*minor_axis*1.05, edgecolor='blue', linestyle='--', facecolor='none', label='Drone Path')
-#         ax.add_patch(drone_path_ellipse)
-
-#         ax.set_xlim(center_x_pixel - major_axis*1.5, center_x_pixel + major_axis*1.5)
-#         ax.set_ylim(center_y_pixel - minor_axis*1.5, center_y_pixel + minor_axis*1.5)
-#         ax.set_aspect('equal', 'box')
-#         plt.grid(True)
-#         plt.legend()
-#         plt.show()
 def calculate_phoschek_needs(length_m, width_m, application_rate_l_per_m2=1):
 
     """
@@ -211,52 +180,19 @@ def calculate_phoschek_needs(length_m, width_m, application_rate_l_per_m2=1):
     - dict: A dictionary containing the gallons of concentrate, total gallons of mixed retardant, and weight of concentrate needed.
 
     """
-
-
-
     LITERS_PER_GALLON = 3.785
-
     MIX_RATIO = 5.5  # Gallons of water per gallon of concentrate
-
     TOTAL_MIX_FROM_ONE_GAL_CONCENTRATE = 1 + MIX_RATIO  # Total mixed retardant from one gallon of concentrate
-
     WEIGHT_PER_GAL_CONCENTRATE = 12.31  # in pounds
-
-
-
-
     area_m2 = length_m * width_m
-
-    
-
-
     total_liters_needed = area_m2 * application_rate_l_per_m2
-
-    
-
-
     total_gallons_needed = total_liters_needed / LITERS_PER_GALLON
-
-    
-
-
     gallons_of_concentrate = total_gallons_needed / TOTAL_MIX_FROM_ONE_GAL_CONCENTRATE
-
-    
-
-
     weight_of_concentrate = gallons_of_concentrate * WEIGHT_PER_GAL_CONCENTRATE
-
-    
-
     return {
-
         'gallons_of_concentrate': round(gallons_of_concentrate, 2),
-
         'total_gallons_of_retardant': round(total_gallons_needed, 2),
-
         'weight_of_concentrate_lbs': round(weight_of_concentrate, 2)
-
     }
 
 
@@ -274,15 +210,11 @@ def main():
     x_dist, y_dist = calculate_x_y_distances(lon1, lat1, lon2, lat2)
     # distance = haversine_distance(start_coords, end_coords)
     print(x_dist, y_dist)
-    fire_area = 0.008  # square kilometers
-    spread_rate = 30  # feet per minute
-
     result = find_optimal_elliptical_path(x_dist, y_dist, spread_rate)
     print(f"Optimal Circumference: {result[0]} km, Drone Time: {result[1]} seconds")
     major_axis = x_dist/2
     minor_axis = y_dist/2
     plot_fire_ellipse_and_drone_path(major_axis, minor_axis, start_coords, end_coords)
-    # plot_fire_ellipse_and_drone_path_on_raster(major_axis, minor_axis, start_coords, end_coords, filepath)
     length = result[0] * 1000  # in meters
     width = 10  # in meters
     results = calculate_phoschek_needs(length, width)

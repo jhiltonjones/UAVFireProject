@@ -13,7 +13,8 @@ import math
 from pyproj import Geod
 from pyproj import Transformer
 import os
-from overlaymaps import overlay_raster_at_point, display_location_on_raster_utm, convert_lat_lon_to_utm
+import time
+from overlaymaps import overlay_raster_at_point, reproject_raster, check_crs
 from multisuppressant import get_raster_data_bounds, calculate_x_y_distances, calc_circumference, find_optimal_elliptical_path, plot_fire_ellipse_and_drone_path,calculate_phoschek_needs, convert_utm_to_lat_lon_from_file2, find_optimal_elliptical_path_after_suppressant
 
 csv_file_path = './models/03-real-fuels/outputs/fire_size_stats.csv' 
@@ -88,23 +89,28 @@ def calculate_drone_travel_time_fastest(center_lon, center_lat, drone_positions,
     geod = Geod(ellps="WGS84")
     min_time = float('inf')
     fastest_drone = None
-    
+    max_time = 0
+    slowest_drone = None
     # print(f"Target coordinates: Longitude = {center_lon}, Latitude = {center_lat}")
     # print("\nDistances to the target location:")
     for drone, (lon, lat) in drone_positions.items():
         _, _, distance = geod.inv(center_lon, center_lat, lon, lat)
         distance_km = distance / 1000  
 
-        # print(f"{drone} is {distance_km:.2f} km away from the target.")
+        print(f"{drone} is {distance_km:.2f} km away from the target.")
 
         travel_time_minutes = (distance_km / drone_speed) * 60
 
         if travel_time_minutes < min_time:
             min_time = travel_time_minutes
             fastest_drone = drone
+        elif travel_time_minutes > max_time:
+            max_time = travel_time_minutes
+            slowest_drone = drone
 
+        print(f"{drone} is {distance_km:.2f} km away from the target, travel time: {travel_time_minutes:.2f} minutes.")
     # print(f"\nThe fastest drone is {fastest_drone} with a travel time of {min_time:.2f} minutes.")
-    return fastest_drone, min_time
+    return fastest_drone, min_time, slowest_drone, max_time
 def calculate_drone_travel_times(center_lon, center_lat, drone_positions, drone_speed=60):
     geod = Geod(ellps="WGS84")
     drone_travel_times = {}
@@ -116,10 +122,8 @@ def calculate_drone_travel_times(center_lon, center_lat, drone_positions, drone_
         distance_km = distance / 1000
         travel_time_minutes = (distance_km / drone_speed) * 60
 
-        # Store each drone's travel time in the dictionary
         drone_travel_times[drone] = travel_time_minutes
 
-        # Identify the slowest drone
         if travel_time_minutes > max_time:
             max_time = travel_time_minutes
             slowest_drone = drone
@@ -335,21 +339,41 @@ def modify_txt_in(script_path2, lon, lat, travel_time):
     except Exception as e:
         print(f"Error modifying bash script: {e}")
 
-import os
-import subprocess
 
-def run_script(script_name):
-    script_directory = os.path.join(os.getcwd(), 'models', '03-real-fuels')
-    script_path = os.path.join(script_directory, script_name)
-    print("Running script at:", script_path)  
-    try:
-        subprocess.run(['bash', script_path], check=True, cwd=script_directory)
-        print("Script executed successfully.")
-    except subprocess.CalledProcessError as e:
-        print(f"Script failed with return code {e.returncode}")
-    except Exception as e:
-        print(f"Failed to run script: {str(e)}")
+def run_script_with_gui(script_name):
+    root = tk.Tk()
+    root.title("Script Execution")
+    label = tk.Label(root, text="Loading prediction...", font=("Arial", 14))
+    label.pack(side="top", fill="both", expand=True, padx=20, pady=20)
+    
+    root.update_idletasks()
+    width = root.winfo_width()
+    height = root.winfo_height()
+    x = (root.winfo_screenwidth() // 2) - (width // 2)
+    y = (root.winfo_screenheight() // 2) - (height // 2)
+    root.geometry(f'{width}x{height}+{x}+{y}')
 
+    def run_script():
+        script_directory = os.path.join(os.getcwd(), 'models', '03-real-fuels')
+        script_path = os.path.join(script_directory, script_name)
+        print("Running script at:", script_path)  
+        try:
+            subprocess.run(['bash', script_path], check=True, cwd=script_directory)
+            print("Script executed successfully.")
+            messagebox.showinfo("Success", "Script executed successfully.")
+        except subprocess.CalledProcessError as e:
+            print(f"Script failed with return code {e.returncode}")
+            messagebox.showerror("Error", f"Script failed with return code {e.returncode}")
+        except Exception as e:
+            print(f"Failed to run script: {str(e)}")
+            messagebox.showerror("Error", f"Failed to run script: {str(e)}")
+        finally:
+            root.destroy()  
+
+
+    root.after(100, run_script)  
+
+    root.mainloop()
 
 def display_raster(tif_file_path):
     with rasterio.open(tif_file_path) as src:
@@ -378,7 +402,7 @@ def launch_gui(result, x_dist_n, y_dist_n, results):
 def launch_gui_not_a_fire(info):
     root2= tk.Tk()
     root2.title("Fire Warning")
-    root2.geometry('600x300')
+    root2.geometry('900x300')
     label = tk.Label(root2, text=info, padx=10, pady=10)
     label.pack()
     button = tk.Button(root2, text="Close", command=root2.destroy)
@@ -434,34 +458,52 @@ def main():
         center_lon, center_lat = read_center_info(file_path = './models/04-fire-potential/01-run.sh')
         converted_coords = convert_utm_to_lat_lon_from_file(center_lon, center_lat, dronepositionpath)
         # cen_lon, cen_lat = readcenterinfo(file_path = '/home/jack/elmfire/tutorials/04-fire-potential/01-run.sh')
-        fastest_drone, travel_time = calculate_drone_travel_time_fastest(lon, lat, converted_coords)
+        fastest_drone, travel_time, slowest_drone, max_time = calculate_drone_travel_time_fastest(lon, lat, converted_coords)
         
         print(travel_time)
         modify_bash_script(script_path, lon, lat, travel_time)
         modify_txt_in(script_path2, lon, lat, travel_time)
         # modify_wx_csv(weather_write_path, weather_data)
         
-        run_script('01-run.sh')
+        run_script_with_gui('01-run.sh')
         
         average_fire_spread_tif = get_first_matching_file(average_fire_spread_tif_pattern)
         print(average_fire_spread_tif)
         tif_file_pattern = os.path.join(script_directory, 'outputs', 'time_of_arrival*.tif')
         tif_file_path = get_first_matching_file(tif_file_pattern)
+        overlay_raster_path = tif_file_path
         average_spread = read_average_fire_spread(average_fire_spread_tif)
         round_average_spread = round(average_spread,2)
         csv_data = read_csv(csv_path)
         for data in csv_data:
                 fire_area = float(data['Total Fire Area (ac)'])
-        if fire_area < 0.3:
+        if fire_area < 0.3 and travel_time>120 or fire_area<0.01:
             info = 'NOT A FIRE'
             launch_gui_not_a_fire(info)
             return
-        
+
         print(fire_area, round_average_spread)
                 # display_raster(tif_file_path)
-        overlay_raster_at_point(base_raster_path, tif_file_path)
-        # utm_x, utm_y = convert_lat_lon_to_utm(lon, lat)
-        # display_location_on_raster_utm(base_raster_path, utm_x, utm_y)
+        desired_crs = 'EPSG:32610'
+        base_raster_crs = check_crs(base_raster_path)
+        overlay_raster_crs = check_crs(overlay_raster_path)
+
+        if base_raster_crs != desired_crs:
+            new_base_raster_path = os.path.splitext(base_raster_path)[0] + '_reprojected.tif'
+            reproject_raster(base_raster_path, new_base_raster_path, desired_crs)
+            base_raster_path = new_base_raster_path
+
+        if overlay_raster_crs != desired_crs:
+            new_overlay_raster_path = os.path.splitext(overlay_raster_path)[0] + '_reprojected.tif'
+            reproject_raster(overlay_raster_path, new_overlay_raster_path, desired_crs)
+            overlay_raster_path = new_overlay_raster_path
+        
+        base_raster_crs = check_crs(base_raster_path)
+        overlay_raster_crs = check_crs(overlay_raster_path)
+
+        print("Base Raster CRS:", base_raster_crs)
+        print("Overlay Raster CRS:", overlay_raster_crs)
+        overlay_raster_at_point(base_raster_path, overlay_raster_path)
         lat2_utm, lon1_utm, lat1_utm, lon2_utm = get_raster_data_bounds(tif_file_path)
         # print(lon1_utm, lat1_utm, lon2_utm, lat2_utm)
         lat1,lon1 = convert_utm_to_lat_lon_from_file2(lat1_utm,lon1_utm)
@@ -479,7 +521,8 @@ def main():
         print(f"Optimal Circumference: {result[0]} km, Drone Time: {result[1]} seconds")
         major_axis = x_dist/2
         minor_axis = y_dist/2
-        plot_fire_ellipse_and_drone_path(major_axis, minor_axis, start_coords, end_coords)
+        if fire_area > 0.3:
+            plot_fire_ellipse_and_drone_path(major_axis, minor_axis, start_coords, end_coords)
         # plot_fire_ellipse_and_drone_path_on_raster(major_axis, minor_axis, start_coords, end_coords, filepath)
         length = result[0] * 1000  # in meters
         width = 10  # in meters
@@ -522,8 +565,12 @@ def main():
             fire_area_float = float(fire_area)
         except ValueError:
             print("Error converting fire area to float")
-
-        if fire_area_float < 1:
+        if fire_area_float < 0.3:
+            info = 'This fire does NOT need multiagent, fire will be removed by closest drone'
+            launch_gui_not_a_fire(info)
+            launch_gui(result, x_dist, y_dist, results)
+            return
+        elif fire_area_float < 1.2:
             info = 'This fire does NOT need multiagent, fire will be removed by closest drone'
             launch_gui_not_a_fire(info)
             launch_gui(result, x_dist, y_dist, results)
@@ -531,11 +578,12 @@ def main():
 
         launch_gui(result, x_dist, y_dist, results)
         
-        slowest_drone, max_travel_time, all_travel_times = calculate_drone_travel_times(center_lon, center_lat, converted_coords)            
-        modify_bash_script(script_path, lon, lat, max_travel_time)
-        modify_txt_in(script_path2, lon, lat, max_travel_time)
-        
-        run_script('01-run.sh')
+        # slowest_drone, max_time = calculate_drone_travel_time_fastest(lon, lat, converted_coords)            
+        modify_bash_script(script_path, lon, lat, max_time)
+        modify_txt_in(script_path2, lon, lat, max_time)
+        multiagentcomment = "The fire will require multiagent suppressant. Running prediction of fire size for all agents to travel to fire."
+        launch_gui_not_a_fire(multiagentcomment)
+        run_script_with_gui('01-run.sh')
         tif_file_path = get_first_matching_file(tif_file_pattern)
         lat2_utm, lon1_utm, lat1_utm, lon2_utm = get_raster_data_bounds(tif_file_path)
         # print(lon1_utm, lat1_utm, lon2_utm, lat2_utm)

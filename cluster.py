@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import sys
 from pyproj import Proj, transform
 from pyproj import Transformer
-
+import threading
 
 script_directory = './models/04-fire-potential'
 script_path = os.path.join(script_directory, '01-run.sh')
@@ -65,17 +65,31 @@ def compute_diff(cumulative_sum, horizontal, vertical, shape):
 
     diff = max(top_left, top_right, bottom_left, bottom_right) - min(top_left, top_right, bottom_left, bottom_right)
     return diff, horizontal, vertical
+
 def run_shell_script(script_filename, output_widget):
-    """ Run the shell script to generate the raster data. """
     global script_directory
+    def gui_loading():
+        window = tk.Tk()
+        window.title("Loading")
+        ttk.Label(window, text="Loading, please wait...").pack(pady=20, padx=10)
+        window.geometry("200x100")
+        window.mainloop()
+
+    thread = threading.Thread(target=gui_loading)
+    thread.start()
+
     try:
-        display(output_widget, "Running Fire Model...") # TODO: Debug display issue. Probably threading issue
+        display(output_widget, "Running Fire Model...") 
         os.chdir(script_directory)
         subprocess.run(['bash', script_filename], check=True)
         os.chdir("../../")
-    except subprocess.CalledProcessError as e:
+    except subprocess.CalledProcessAnswer as e:
         print(f"An error occurred while running the shell script: {e}")
         return False
+    finally:
+        tk._default_root.quit() 
+        thread.join()  
+
     return True
 def generate_coordinates(filepath, geo_mid_top_left, geo_mid_top_right, geo_mid_bottom_right, geo_mid_bottom_left):
     
