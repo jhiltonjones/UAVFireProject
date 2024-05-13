@@ -13,8 +13,13 @@ import math
 from pyproj import Geod
 from pyproj import Transformer
 import os
+<<<<<<< HEAD
 from overlaymaps import overlay_raster_at_point, reproject_raster, check_crs
 from calculate_multiagent_supressant import get_raster_data_bounds, calculate_x_y_distances, calc_circumference, find_optimal_elliptical_path, plot_fire_ellipse_and_drone_path,calculate_phoschek_needs, convert_utm_to_lat_lon_from_file2, find_optimal_elliptical_path_after_suppressant
+=======
+from overlaymaps import overlay_raster_at_point, display_location_on_raster_utm, convert_lat_lon_to_utm
+from multisuppressant import get_raster_data_bounds, calculate_x_y_distances, calc_circumference, find_optimal_elliptical_path, plot_fire_ellipse_and_drone_path,calculate_phoschek_needs, convert_utm_to_lat_lon_from_file2, find_optimal_elliptical_path_after_suppressant
+>>>>>>> ff6c280ab6c5ab7720a2320bddc00ce0344b2761
 
 csv_file_path = './models/03-real-fuels/outputs/fire_size_stats.csv' 
 dronepositionpath = './configs/drone_coordinates.txt'
