@@ -458,11 +458,11 @@ def main():
         csv_data = read_csv(csv_path)
         for data in csv_data:
                 fire_area = float(data['Total Fire Area (ac)'])
-        if fire_area < 0.3:
+        if fire_area < 0.3 and travel_time>120 or fire_area<0.01:
             info = 'NOT A FIRE'
             launch_gui_not_a_fire(info)
             return
-        
+
         print(fire_area, round_average_spread)
                 # display_raster(tif_file_path)
         desired_crs = 'EPSG:32610'
@@ -502,7 +502,8 @@ def main():
         print(f"Optimal Circumference: {result[0]} km, Drone Time: {result[1]} seconds")
         major_axis = x_dist/2
         minor_axis = y_dist/2
-        plot_fire_ellipse_and_drone_path(major_axis, minor_axis, start_coords, end_coords)
+        if fire_area > 0.3:
+            plot_fire_ellipse_and_drone_path(major_axis, minor_axis, start_coords, end_coords)
         # plot_fire_ellipse_and_drone_path_on_raster(major_axis, minor_axis, start_coords, end_coords, filepath)
         length = result[0] * 1000  # in meters
         width = 10  # in meters
@@ -545,8 +546,12 @@ def main():
             fire_area_float = float(fire_area)
         except ValueError:
             print("Error converting fire area to float")
-
-        if fire_area_float < 1:
+        if fire_area_float < 0.3:
+            info = 'This fire does NOT need multiagent, fire will be removed by closest drone'
+            launch_gui_not_a_fire(info)
+            launch_gui(result, x_dist, y_dist, results)
+            return
+        elif fire_area_float < 1.2:
             info = 'This fire does NOT need multiagent, fire will be removed by closest drone'
             launch_gui_not_a_fire(info)
             launch_gui(result, x_dist, y_dist, results)

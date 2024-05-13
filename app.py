@@ -36,7 +36,7 @@ class CustomFileSystemEventHandler(FileSystemEventHandler):
     def on_modified(self, event):
         global last_run_time, prediction_result
         current_time = time.time()
-        if event.src_path == './out/weather_info.txt' and (current_time - last_run_time > 2):   
+        if event.src_path == './out/weather_info.txt' and (current_time - last_run_time > 1):   
             print("File changed, triggering prediction.")
             last_run_time = current_time
             prediction_result = self.handle_prediction(event.src_path)
