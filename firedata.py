@@ -375,6 +375,15 @@ def launch_gui(result, x_dist_n, y_dist_n, results):
     button = tk.Button(root2, text="Close", command=root2.destroy)
     button.pack(pady=20)
     root2.mainloop()
+def launch_gui_not_a_fire(info):
+    root2= tk.Tk()
+    root2.title("Fire Warning")
+    root2.geometry('400x200')
+    label = tk.Label(root2, text=info, padx=10, pady=10)
+    label.pack()
+    button = tk.Button(root2, text="Close", command=root2.destroy)
+    button.pack(pady=20)
+    root2.mainloop()
 # def find_minimal_effective_circle(fire_area, spread_rate, drone_speed=50):
 #     """Find the minimal effective circle the drone can circle, adjusting for fire spread.
 
@@ -443,6 +452,11 @@ def main():
         csv_data = read_csv(csv_path)
         for data in csv_data:
                 fire_area = float(data['Total Fire Area (ac)'])
+        if fire_area < 0.3:
+            info = 'NOT A FIRE'
+            launch_gui_not_a_fire(info)
+            return
+        
         print(fire_area, round_average_spread)
                 # display_raster(tif_file_path)
         overlay_raster_at_point(base_raster_path, tif_file_path)
@@ -458,7 +472,7 @@ def main():
         x_dist, y_dist = calculate_x_y_distances(lon1, lat1, lon2, lat2)
         # distance = haversine_distance(start_coords, end_coords)
         print(f"x distance: {x_dist} y distance: {y_dist}")
-        fire_area = 0.008  # square kilometers
+        
         spread_rate = average_spread  # feet per minute
 
         result = find_optimal_elliptical_path(x_dist, y_dist, spread_rate)
@@ -504,7 +518,15 @@ def main():
                 
                 update_fire_stats(lon, lat, fire_volume, fire_area, average_spread, priority, fastest_drone, travel_time, optimal_circumference, drone_suppressant_time)
         create_gui(csv_data)
+        try:
+            fire_area_float = float(fire_area)
+        except ValueError:
+            print("Error converting fire area to float")
 
+        if fire_area_float < 0.6:
+            info = 'This fire does need multiagent, fire will be removed by closest drone'
+            launch_gui_not_a_fire(info)
+            return
 
         
         

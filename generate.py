@@ -34,7 +34,7 @@ def generate_random_coordinate(lon, lat):
     while True:
         R = 6371.0  
 
-        random_radius = random.uniform(0, 18)  
+        random_radius = random.uniform(0, 17)  
 
         random_angle = random.uniform(0, 2 * math.pi)
 
