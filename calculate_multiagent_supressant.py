@@ -145,8 +145,8 @@ def plot_fire_ellipse_and_drone_path(major_axis, minor_axis, start_coords, end_c
                                  edgecolor='blue', linestyle='--', facecolor='none', label='Drone Path')
     ax.add_patch(drone_path_ellipse)
 
-    ax.set_xlim(center_x - major_axis*5, center_x + major_axis*5)
-    ax.set_ylim(center_y - minor_axis*5, center_y + minor_axis*5)
+    ax.set_xlim(center_x - major_axis*20, center_x + major_axis*20)
+    ax.set_ylim(center_y - minor_axis*1.2, center_y + minor_axis*1.2)
     ax.set_aspect('equal', 'box')
 
     plt.grid(True)
@@ -263,7 +263,7 @@ def calculate_phoschek_needs(length_m, width_m, application_rate_l_per_m2=1):
 
 
 def main():
-    filepath = 'models/03-real-fuels/outputs/vs_0000001_0000815.tif'
+    filepath = 'models/03-real-fuels/outputs/time_of_arrival_0000001_0000814.tif'
     lat2_utm, lon1_utm, lat1_utm, lon2_utm = get_raster_data_bounds(filepath)
     # print(lon1_utm, lat1_utm, lon2_utm, lat2_utm)
     lat1,lon1 = convert_utm_to_lat_lon_from_file2(lat1_utm,lon1_utm)
