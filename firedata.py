@@ -378,7 +378,7 @@ def launch_gui(result, x_dist_n, y_dist_n, results):
 def launch_gui_not_a_fire(info):
     root2= tk.Tk()
     root2.title("Fire Warning")
-    root2.geometry('400x200')
+    root2.geometry('600x300')
     label = tk.Label(root2, text=info, padx=10, pady=10)
     label.pack()
     button = tk.Button(root2, text="Close", command=root2.destroy)
@@ -523,9 +523,10 @@ def main():
         except ValueError:
             print("Error converting fire area to float")
 
-        if fire_area_float < 0.6:
-            info = 'This fire does need multiagent, fire will be removed by closest drone'
+        if fire_area_float < 1:
+            info = 'This fire does NOT need multiagent, fire will be removed by closest drone'
             launch_gui_not_a_fire(info)
+            launch_gui(result, x_dist, y_dist, results)
             return
 
         
