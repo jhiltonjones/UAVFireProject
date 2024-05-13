@@ -5,6 +5,32 @@ from pyproj import Transformer
 import numpy as np
 import os
 import glob
+import rasterio
+from rasterio.warp import calculate_default_transform, reproject, Resampling
+
+def reproject_raster(input_raster_path, output_raster_path, target_crs):
+    with rasterio.open(input_raster_path) as src:
+        transform, width, height = calculate_default_transform(
+            src.crs, target_crs, src.width, src.height, *src.bounds)
+        kwargs = src.meta.copy()
+        kwargs.update({
+            'crs': target_crs,
+            'transform': transform,
+            'width': width,
+            'height': height
+        })
+
+        with rasterio.open(output_raster_path, 'w', **kwargs) as dst:
+            for band in range(1, src.count + 1):
+                reproject(
+                    source=rasterio.band(src, band),
+                    destination=rasterio.band(dst, band),
+                    src_transform=src.transform,
+                    src_crs=src.crs,
+                    dst_transform=transform,
+                    dst_crs=target_crs,
+                    resampling=Resampling.nearest)
+
 def convert_lat_lon_to_utm(lon, lat, output_crs='epsg:32610'):
     """ Convert latitude and longitude to UTM coordinates. """
     transformer = Transformer.from_crs('epsg:4326', output_crs, always_xy=True)
@@ -44,7 +70,7 @@ def normalise(array):
 
 
 
-def overlay_raster_at_point(base_raster_path, overlay_raster_path, zoom_scale=0.1, zoom_scale2 = 1):
+def overlay_raster_at_point(base_raster_path, overlay_raster_path, zoom_scale=0.1):
     try:
         with rasterio.open(base_raster_path) as base_src:
             band1 = base_src.read(1)  
@@ -81,16 +107,6 @@ def overlay_raster_at_point(base_raster_path, overlay_raster_path, zoom_scale=0.
                 center_y - half_height,
                 center_y + half_height
             ]
-            center_x2 = (base_extent[0] + base_extent[1]) / 2
-            center_y2 = (base_extent[2] + base_extent[3]) / 2
-            half_width2 = (base_extent[1] - base_extent[0]) * zoom_scale2 / 2
-            half_height2 = (base_extent[3] - base_extent[2]) * zoom_scale2 / 2
-            zoomed_extent2 = [
-                center_x2 - half_width2,
-                center_x2 + half_width2,
-                center_y2 - half_height2,
-                center_y2 + half_height2
-            ]
 
             plt.figure(figsize=(10, 10))
             plt.imshow(band1_normalised, cmap='Greens', extent=base_extent, interpolation='none')
@@ -107,7 +123,6 @@ def overlay_raster_at_point(base_raster_path, overlay_raster_path, zoom_scale=0.
             # plt.ylim(zoomed_extent2[2], zoomed_extent2[3])
             # plt.show()
             with rasterio.open(base_raster_path) as base_src:
-                col, row = base_src.index(center_x2, center_y2)  
                 
                 plt.figure(figsize=(10, 10))
                 plt.imshow(band1_normalised, cmap='Greens', extent=base_extent, interpolation='none')
@@ -144,6 +159,9 @@ def display_location_on_raster_utm(raster_path, x, y):
         plt.title('Raster Display with Specified UTM Location')
         plt.show()
 
+def check_crs(raster_path):
+        with rasterio.open(raster_path) as src:
+            return src.crs
 
 
 
@@ -157,6 +175,27 @@ def main():
     longitude, latitude = readcenterinfo(file_path) 
     print(longitude, latitude)
     utm_x, utm_y = convert_lat_lon_to_utm(longitude, latitude)
+
+
+    desired_crs = 'EPSG:32610'
+    base_raster_crs = check_crs(base_raster_path)
+    overlay_raster_crs = check_crs(overlay_raster_path)
+
+    if base_raster_crs != desired_crs:
+        new_base_raster_path = os.path.splitext(base_raster_path)[0] + '_reprojected.tif'
+        reproject_raster(base_raster_path, new_base_raster_path, desired_crs)
+        base_raster_path = new_base_raster_path
+
+    if overlay_raster_crs != desired_crs:
+        new_overlay_raster_path = os.path.splitext(overlay_raster_path)[0] + '_reprojected.tif'
+        reproject_raster(overlay_raster_path, new_overlay_raster_path, desired_crs)
+        overlay_raster_path = new_overlay_raster_path
+    
+    base_raster_crs = check_crs(base_raster_path)
+    overlay_raster_crs = check_crs(overlay_raster_path)
+
+    print("Base Raster CRS:", base_raster_crs)
+    print("Overlay Raster CRS:", overlay_raster_crs)
     overlay_raster_at_point(base_raster_path, overlay_raster_path)
     # display_location_on_raster_utm(base_raster_path, utm_x, utm_y)
 if __name__ == "__main__":
