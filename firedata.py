@@ -13,6 +13,7 @@ import math
 from pyproj import Geod
 from pyproj import Transformer
 import os
+import time
 from overlaymaps import overlay_raster_at_point, reproject_raster, check_crs
 from multisuppressant import get_raster_data_bounds, calculate_x_y_distances, calc_circumference, find_optimal_elliptical_path, plot_fire_ellipse_and_drone_path,calculate_phoschek_needs, convert_utm_to_lat_lon_from_file2, find_optimal_elliptical_path_after_suppressant
 
@@ -121,10 +122,8 @@ def calculate_drone_travel_times(center_lon, center_lat, drone_positions, drone_
         distance_km = distance / 1000
         travel_time_minutes = (distance_km / drone_speed) * 60
 
-        # Store each drone's travel time in the dictionary
         drone_travel_times[drone] = travel_time_minutes
 
-        # Identify the slowest drone
         if travel_time_minutes > max_time:
             max_time = travel_time_minutes
             slowest_drone = drone
@@ -340,21 +339,41 @@ def modify_txt_in(script_path2, lon, lat, travel_time):
     except Exception as e:
         print(f"Error modifying bash script: {e}")
 
-import os
-import subprocess
 
-def run_script(script_name):
-    script_directory = os.path.join(os.getcwd(), 'models', '03-real-fuels')
-    script_path = os.path.join(script_directory, script_name)
-    print("Running script at:", script_path)  
-    try:
-        subprocess.run(['bash', script_path], check=True, cwd=script_directory)
-        print("Script executed successfully.")
-    except subprocess.CalledProcessError as e:
-        print(f"Script failed with return code {e.returncode}")
-    except Exception as e:
-        print(f"Failed to run script: {str(e)}")
+def run_script_with_gui(script_name):
+    root = tk.Tk()
+    root.title("Script Execution")
+    label = tk.Label(root, text="Loading prediction...", font=("Arial", 14))
+    label.pack(side="top", fill="both", expand=True, padx=20, pady=20)
+    
+    root.update_idletasks()
+    width = root.winfo_width()
+    height = root.winfo_height()
+    x = (root.winfo_screenwidth() // 2) - (width // 2)
+    y = (root.winfo_screenheight() // 2) - (height // 2)
+    root.geometry(f'{width}x{height}+{x}+{y}')
 
+    def run_script():
+        script_directory = os.path.join(os.getcwd(), 'models', '03-real-fuels')
+        script_path = os.path.join(script_directory, script_name)
+        print("Running script at:", script_path)  
+        try:
+            subprocess.run(['bash', script_path], check=True, cwd=script_directory)
+            print("Script executed successfully.")
+            messagebox.showinfo("Success", "Script executed successfully.")
+        except subprocess.CalledProcessError as e:
+            print(f"Script failed with return code {e.returncode}")
+            messagebox.showerror("Error", f"Script failed with return code {e.returncode}")
+        except Exception as e:
+            print(f"Failed to run script: {str(e)}")
+            messagebox.showerror("Error", f"Failed to run script: {str(e)}")
+        finally:
+            root.destroy()  
+
+
+    root.after(100, run_script)  
+
+    root.mainloop()
 
 def display_raster(tif_file_path):
     with rasterio.open(tif_file_path) as src:
@@ -383,7 +402,7 @@ def launch_gui(result, x_dist_n, y_dist_n, results):
 def launch_gui_not_a_fire(info):
     root2= tk.Tk()
     root2.title("Fire Warning")
-    root2.geometry('600x300')
+    root2.geometry('900x300')
     label = tk.Label(root2, text=info, padx=10, pady=10)
     label.pack()
     button = tk.Button(root2, text="Close", command=root2.destroy)
@@ -446,7 +465,7 @@ def main():
         modify_txt_in(script_path2, lon, lat, travel_time)
         # modify_wx_csv(weather_write_path, weather_data)
         
-        run_script('01-run.sh')
+        run_script_with_gui('01-run.sh')
         
         average_fire_spread_tif = get_first_matching_file(average_fire_spread_tif_pattern)
         print(average_fire_spread_tif)
@@ -562,8 +581,10 @@ def main():
         # slowest_drone, max_time = calculate_drone_travel_time_fastest(lon, lat, converted_coords)            
         modify_bash_script(script_path, lon, lat, max_time)
         modify_txt_in(script_path2, lon, lat, max_time)
-        
-        run_script('01-run.sh')
+        multiagentcomment = "The fire will require multiagent suppressant. Running prediction of fire size for all agents to travel to fire."
+        launch_gui_not_a_fire(multiagentcomment)
+        time.sleep(2)
+        run_script_with_gui('01-run.sh')
         tif_file_path = get_first_matching_file(tif_file_pattern)
         lat2_utm, lon1_utm, lat1_utm, lon2_utm = get_raster_data_bounds(tif_file_path)
         # print(lon1_utm, lat1_utm, lon2_utm, lat2_utm)
