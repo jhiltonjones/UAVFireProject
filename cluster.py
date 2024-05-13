@@ -5,7 +5,7 @@ import subprocess
 import os
 import rasterio
 import matplotlib
-import numpy as n
+import numpy as np
 from concurrent.futures import ThreadPoolExecutor
 import math
 import matplotlib.pyplot as plt
@@ -222,7 +222,7 @@ def process_raster(output_widget):
     messagebox.showinfo("Success", "Raster processed successfully.")
 
 
-def modify_bash_script():
+def modify_bash_script(script_path, lon_entry, lat_entry, buffer_entry):
     new_lon = lon_entry.get()
     new_lat = lat_entry.get()
     new_buffers = buffer_entry.get()
@@ -281,7 +281,7 @@ def display(output_widget, text):
     output_widget.insert(tk.END, f"{text}\n")
 
 def execute_and_process(script_filename, output_widget):
-    # sys.stdout = StdoutRedirector(output_widget) # TODO: Immediately display messages in tkinter instead of redirecting though stdout
+    # sys.stdout = StdoutRedirector(output_widget) # TODO: Immediately display messages in tkinter instead of redirecting through stdout
     if run_shell_script(script_filename, output_widget):
         display(output_widget, "Shell script executed successfully.")
         process_raster(output_widget)
@@ -308,7 +308,7 @@ wx_entry.pack(pady=5)
 output_area = scrolledtext.ScrolledText(root, height=15, width=100)
 output_area.pack(pady=(5, 10))
 
-save_script_button = ttk.Button(root, text="Save Bash Script", command=lambda: modify_bash_script())
+save_script_button = ttk.Button(root, text="Save Bash Script", command=lambda: modify_bash_script(script_path, lon_entry, lat_entry, buffer_entry))
 save_script_button.pack(pady=5)
 save_csv_button = ttk.Button(root, text="Save CSV", command=lambda: modify_wx_csv())
 save_csv_button.pack(pady=5)

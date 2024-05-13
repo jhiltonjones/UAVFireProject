@@ -8,6 +8,7 @@ import sys
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler  
 from flask import request, flash
+
 app = Flask("webpage.html", template_folder = './')
 app.secret_key = '%$6£&^&^HDIO76%^%£"^7'
 
@@ -95,9 +96,11 @@ def run_script():
         if request.form['submit_button'] == 'Run Drone Clustering':
             script_path = './cluster.py'
         elif request.form['submit_button'] == 'Fire History':
-            script_path = './firetable.py'  
+            script_path = './firetable.py'
         elif request.form['submit_button'] == 'Generate Data':
-            script_path = './generate.py'   
+            script_path = './generate.py'
+        elif request.form['submit_button'] == 'Practice Tool Arena':
+            script_path = './suppression.py'
         
         if script_path:
             try:
