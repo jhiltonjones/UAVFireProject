@@ -151,7 +151,7 @@ def disable(button):
             button["state"] = "normal"
 
 def tick(hr, min, sec, amount):
-    time_sec = int(hr.get()) * 3600 + int(min.get()) * 60 + int(sec.get()) - amount
+    time_sec = int(hr.get()) * 3600 + int(min.get()) * 60 + int(sec.get()) - int(amount)
     
     if (time_sec < 0):
         time_sec = 0
