@@ -477,7 +477,7 @@ def main():
         csv_data = read_csv(csv_path)
         for data in csv_data:
                 fire_area = float(data['Total Fire Area (ac)'])
-        if fire_area < 0.3 and travel_time>120 or fire_area<0.01:
+        if fire_area < 0.4 or fire_area<0.01:
             info = 'NOT A FIRE'
             launch_gui_not_a_fire(info)
             return

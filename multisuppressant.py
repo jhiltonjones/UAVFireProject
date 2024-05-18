@@ -145,7 +145,7 @@ def plot_fire_ellipse_and_drone_path(major_axis, minor_axis, start_coords, end_c
                                  edgecolor='blue', linestyle='--', facecolor='none', label='Drone Path')
     ax.add_patch(drone_path_ellipse)
 
-    ax.set_xlim(center_x - major_axis*20, center_x + major_axis*20)
+    ax.set_xlim(center_x - major_axis*20 ,center_x + major_axis*20)
     ax.set_ylim(center_y - minor_axis*1.2, center_y + minor_axis*1.2)
     ax.set_aspect('equal', 'box')
 

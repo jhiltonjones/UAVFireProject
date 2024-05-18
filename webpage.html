@@ -12,12 +12,22 @@
             padding: 20px;
             color: #333;
         }
+        .super-container {
+            padding: 20px;
+            margin: auto;
+            display: flexbox;
+            justify-content: center;
+        }
         .container {
             background: white;
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             padding: 20px;
+            width: 50%;
+            height: 100%;
             max-width: 600px;
+            max-height: 600px;
+            float: left;
             margin: auto;
         }
         h1 {
@@ -74,42 +84,44 @@
                 });
         }
 
-        // Call refreshPrediction function initially and every 3 seconds
-        refreshPrediction(); // Call initially
-        setInterval(refreshPrediction, 3000); // Call every 3 seconds
+        refreshPrediction(); 
+        setInterval(refreshPrediction, 3000); 
     </script>
 </head>
 <body>
-    <div class="container">
-        <h1>Prediction Results</h1>
-        <div class="data-field">
-            <span>Prediction:</span>
-            <span id="prediction" class="data-value"></span>
+    <div class="super-container">
+        <div class="container">
+            <h1>Prediction Results</h1>
+            <div class="data-field">
+                <span>Prediction:</span>
+                <span id="prediction" class="data-value"></span>
+            </div>
+            <div class="data-field">
+                <span>Probability:</span>
+                <span id="probability" class="data-value"></span>
+            </div>
+            <div class="data-field">
+                <span>Longitude:</span>
+                <span id="lon" class="data-value"></span>
+            </div>
+            <div class="data-field">
+                <span>Latitude:</span>
+                <span id="lat" class="data-value"></span>
+            </div>
+            <form method="POST" action="/run_script">
+                <button type="submit" name="submit_button" value="Run Drone Clustering">Run Drone Clustering</button>
+            </form>
+            <form method="POST" action="/run_script">
+                <button type="submit" name="submit_button" value="Fire History">Fire History</button>
+            </form>
+            <form method="POST" action="/run_script">
+                <button type="submit" name="submit_button" value="Generate Data">Generate Data</button>
+            </form>
+            <form method="POST" action="/run_script">
+                <button type="submit" name="submit_button" value="Practice Tool Arena">Practice Tool Arena</button>
+            </form>
         </div>
-        <div class="data-field">
-            <span>Probability:</span>
-            <span id="probability" class="data-value"></span>
-        </div>
-        <div class="data-field">
-            <span>Longitude:</span>
-            <span id="lon" class="data-value"></span>
-        </div>
-        <div class="data-field">
-            <span>Latitude:</span>
-            <span id="lat" class="data-value"></span>
-        </div>
-        <form method="POST" action="/run_script">
-            <button type="submit" name="submit_button" value="Run Drone Clustering">Run Drone Clustering</button>
-        </form>
-        <form method="POST" action="/run_script">
-            <button type="submit" name="submit_button" value="Fire History">Fire History</button>
-        </form>
-        <form method="POST" action="/run_script">
-            <button type="submit" name="submit_button" value="Generate Data">Generate Data</button>
-        </form>
-        <form method="POST" action="/run_script">
-            <button type="submit" name="submit_button" value="Practice Tool Arena">Practice Tool Arena</button>
-        </form>
-    </div>
+        <img src="{{ image }}" alt="Latest strategy GIF will appear here automatically after it gets generated." class="container">
+    </div>  
 </body>
 </html>
