@@ -86,10 +86,10 @@ def find_optimal_elliptical_path(x_dist, y_dist, spread_rate, drone_speed=50):
 
         minor_axis -= increment  
         major_axis -= increment
-    return smallest_circumference, optimal_drone_time
+    return round(smallest_circumference,2), round(optimal_drone_time,2)
 
 def find_optimal_elliptical_path_after_suppressant(x_dist_n, y_dist_n, spread_rate, drone_speed=50):
-    # Convert spread rate to km/s for consistency in units
+    # Convert spread rate to km/s 
     spread_rate_km_s = spread_rate * 0.0003048 / 60 / 60
     # print(x_dist, y_dist)
     initial_major_axis = y_dist_n/2
@@ -159,27 +159,6 @@ def plot_fire_ellipse_and_drone_path(major_axis, minor_axis, start_coords, end_c
 
 def calculate_phoschek_needs(length_m, width_m, application_rate_l_per_m2=1):
 
-    """
-
-    Calculate the required amount of Phos-Chhek LC-95-W concentrate and its weight to cover a specific area.
-
-    
-
-    Parameters:
-
-    - length_m (float): The length of the area to cover in meters.
-
-    - width_m (float): The width of the area to cover in meters.
-
-    - application_rate_l_per_m2 (float): Application rate in liters per square meter.
-
-    
-
-    Returns:
-
-    - dict: A dictionary containing the gallons of concentrate, total gallons of mixed retardant, and weight of concentrate needed.
-
-    """
     LITERS_PER_GALLON = 3.785
     MIX_RATIO = 5.5  # Gallons of water per gallon of concentrate
     TOTAL_MIX_FROM_ONE_GAL_CONCENTRATE = 1 + MIX_RATIO  # Total mixed retardant from one gallon of concentrate

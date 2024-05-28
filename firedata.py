@@ -95,7 +95,7 @@ def calculate_drone_travel_time_fastest(center_lon, center_lat, drone_positions,
     # print("\nDistances to the target location:")
     for drone, (lon, lat) in drone_positions.items():
         _, _, distance = geod.inv(center_lon, center_lat, lon, lat)
-        distance_km = distance / 1000  
+        distance_km = round(distance / 1000,2)  
 
         print(f"{drone} is {distance_km:.2f} km away from the target.")
 
@@ -105,7 +105,7 @@ def calculate_drone_travel_time_fastest(center_lon, center_lat, drone_positions,
             min_time = travel_time_minutes
             fastest_drone = drone
         elif travel_time_minutes > max_time:
-            max_time = travel_time_minutes
+            max_time = round(travel_time_minutes,2)
             slowest_drone = drone
 
         print(f"{drone} is {distance_km:.2f} km away from the target, travel time: {travel_time_minutes:.2f} minutes.")
@@ -122,7 +122,7 @@ def calculate_drone_travel_times(center_lon, center_lat, drone_positions, drone_
         distance_km = distance / 1000
         travel_time_minutes = (distance_km / drone_speed) * 60
 
-        drone_travel_times[drone] = travel_time_minutes
+        drone_travel_times[drone] = round(travel_time_minutes)
 
         if travel_time_minutes > max_time:
             max_time = travel_time_minutes
@@ -136,7 +136,7 @@ def log_fire_data(csv_path, fire_data):
     """
     Log fire data to a CSV file. If the file doesn't exist, create it and add headers.
     """
-    fieldnames = ['Date', 'Longitude', 'Latitude', 'Fire Volume (ac-ft)', 'Total Fire Area (ac)', 'Average Spread Rate (unit)', 'Priority', 'Nearest Drone', 'Travel Time', 'Circumference', 'Drone Suppressant Time']
+    fieldnames = ['Date', 'Longitude', 'Latitude', 'Fire Volume (ac-ft)', 'Total Fire Area (ac)', 'Average Spread Rate (unit)', 'Priority', 'Nearest Drone', 'Travel Time (mins)', 'Circumference (km)', 'Drone Suppressant Time (s)']
     file_exists = os.path.isfile(csv_path)
     with open(csv_path, 'a', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -158,9 +158,9 @@ def update_fire_stats(lon, lat, volume, area, spread_rate, priority, fastest_dro
         'Average Spread Rate (unit)': spread_rate,
         'Priority': priority,
         'Nearest Drone': fastest_drone,
-        'Travel Time': travel_time,
-        'Circumference': optimal_circumference,
-        'Drone Suppressant Time': drone_suppressant_time
+        'Travel Time (mins)': travel_time,
+        'Circumference (km)': optimal_circumference,
+        'Drone Suppressant Time (s)': drone_suppressant_time
 
     }
     csv_file_path = 'out/fire_log3'
@@ -178,9 +178,9 @@ def read_csv(file_path):
                     'Average Spread Rate': row.get('Average Spread Rate (unit)', 'N/A'),
                     'Priority of Fire': row.get('Priority', 'N/A'),
                     'Nearest Drone': row.get('Nearest Drone', 'N/A'),
-                    'Travel Time': row.get('Travel Time', 'N/A'),
-                    'Circumference': row.get('Circumference', 'N/A'),
-                    'Drone Suppressant Time': row.get('Drone Suppressant Time', 'N/A')
+                    'Travel Time (mins)': row.get('Travel Time (mins)', 'N/A'),
+                    'Circumference (km)': row.get('Circumference (km)', 'N/A'),
+                    'Drone Suppressant Time (s)': row.get('Drone Suppressant Time (s)', 'N/A')
 
                 }
                 data.append(extracted_data)
@@ -273,18 +273,18 @@ def update_csv_with_average(csv_path, average_spread, priority, fastest_drone, t
         if 'Nearest Drone' not in fieldnames:
             fieldnames.append('Nearest Drone')
         if 'Travel Time' not in fieldnames:
-            fieldnames.append('Travel Time')
+            fieldnames.append('Travel Time (mins)')
         if 'Circumference' not in fieldnames:
-            fieldnames.append('Circumference')
+            fieldnames.append('Circumference (km)')
         if 'Drone Suppressant Time' not in fieldnames:
-            fieldnames.append('Drone Suppressant Time')
+            fieldnames.append('Drone Suppressant Time (s)')
         for row in rows:
             row['Average Spread Rate (unit)'] = average_spread
             row['Priority'] = priority
             row['Nearest Drone'] = fastest_drone
-            row['Travel Time'] = travel_time
-            row ['Circumference'] = optimal_circumference
-            row ['Drone Suppressant Time'] = drone_suppressant_time
+            row['Travel Time (mins)'] = travel_time
+            row ['Circumference (km)'] = optimal_circumference
+            row ['Drone Suppressant Time (s)'] = drone_suppressant_time
 
 
         with open(csv_path, 'w', newline='') as csvfile:
@@ -378,16 +378,28 @@ def run_script_with_gui(script_name):
 def display_raster(tif_file_path):
     with rasterio.open(tif_file_path) as src:
         band = src.read(1)
-        zoom_window_size = 10 
+        zoom_window_size = 10
         mid_y, mid_x = band.shape[0] // 2, band.shape[1] // 2
         min_row = max(0, mid_y - zoom_window_size)
         max_row = min(band.shape[0], mid_y + zoom_window_size)
         min_col = max(0, mid_x - zoom_window_size)
         max_col = min(band.shape[1], mid_x + zoom_window_size)
         zoomed_band = band[min_row:max_row, min_col:max_col]
+
+        pixel_size_x, pixel_size_y = src.res[0], src.res[1]
+
         plt.imshow(zoomed_band, cmap='gray_r')
         plt.colorbar()
         plt.title('Raster Image')
+        
+        x_distances = [round((i - min_col) * pixel_size_x, 2) for i in range(min_col, max_col)]
+        y_distances = [round((i - min_row) * pixel_size_y, 2) for i in range(min_row, max_row)]
+        
+        plt.xticks(ticks=range(zoom_window_size * 2), labels=x_distances)
+        plt.yticks(ticks=range(zoom_window_size * 2), labels=y_distances)
+        
+        plt.xlabel('Distance (km)')
+        plt.ylabel('Distance (km)')
         plt.show()
 
 def launch_gui(result, x_dist_n, y_dist_n, results):
@@ -484,9 +496,13 @@ def main():
 
         print(fire_area, round_average_spread)
                 # display_raster(tif_file_path)
-        desired_crs = 'EPSG:32610'
+
+        extra_raster_path = '/home/jack/Downloads/LF2020_Roads_220_CONUS/LC20_Roads_220.tif'  
+
         base_raster_crs = check_crs(base_raster_path)
         overlay_raster_crs = check_crs(overlay_raster_path)
+        extra_raster_crs = check_crs(extra_raster_path)
+        desired_crs = 'EPSG:32610'
 
         if base_raster_crs != desired_crs:
             new_base_raster_path = os.path.splitext(base_raster_path)[0] + '_reprojected.tif'
@@ -497,13 +513,20 @@ def main():
             new_overlay_raster_path = os.path.splitext(overlay_raster_path)[0] + '_reprojected.tif'
             reproject_raster(overlay_raster_path, new_overlay_raster_path, desired_crs)
             overlay_raster_path = new_overlay_raster_path
-        
+
+        if extra_raster_crs != desired_crs:
+            new_extra_raster_path = os.path.splitext(extra_raster_path)[0] + '_reprojected.tif'
+            reproject_raster(extra_raster_path, new_extra_raster_path, desired_crs)
+            extra_raster_path = new_extra_raster_path
+
         base_raster_crs = check_crs(base_raster_path)
         overlay_raster_crs = check_crs(overlay_raster_path)
+        extra_raster_crs = check_crs(extra_raster_path)
 
         print("Base Raster CRS:", base_raster_crs)
         print("Overlay Raster CRS:", overlay_raster_crs)
-        overlay_raster_at_point(base_raster_path, overlay_raster_path)
+        print("Extra Raster CRS:", extra_raster_crs)
+        overlay_raster_at_point(base_raster_path, overlay_raster_path, extra_raster_path)
         lat2_utm, lon1_utm, lat1_utm, lon2_utm = get_raster_data_bounds(tif_file_path)
         # print(lon1_utm, lat1_utm, lon2_utm, lat2_utm)
         lat1,lon1 = convert_utm_to_lat_lon_from_file2(lat1_utm,lon1_utm)
@@ -555,9 +578,9 @@ def main():
                 average_spread = data['Average Spread Rate']
                 priority = data['Priority of Fire']
                 fastest_drone = data['Nearest Drone']
-                travel_time = data['Travel Time']
-                optimal_circumference = data['Circumference']
-                drone_suppressant_time = data['Drone Suppressant Time']
+                travel_time = data['Travel Time (mins)']
+                optimal_circumference = data['Circumference (km)']
+                drone_suppressant_time = data['Drone Suppressant Time (s)']
                 
                 update_fire_stats(lon, lat, fire_volume, fire_area, average_spread, priority, fastest_drone, travel_time, optimal_circumference, drone_suppressant_time)
         create_gui(csv_data)

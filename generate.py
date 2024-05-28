@@ -34,7 +34,7 @@ def generate_random_coordinate(lon, lat):
     while True:
         R = 6371.0  
 
-        random_radius = random.uniform(0, 17)  
+        random_radius = random.uniform(0, 15)  
 
         random_angle = random.uniform(0, 2 * math.pi)
 
@@ -96,6 +96,6 @@ if __name__ == "__main__":
     filepath = 'out/weather_info.txt'
     file_path = 'models/04-fire-potential/01-run.sh'
     weather_path = 'models/04-fire-potential/wx.csv'
-    max_interval_seconds = 50
-    min_interval_seconds = 45
+    max_interval_seconds = 10
+    min_interval_seconds = 5
     run_at_random_intervals(min_interval_seconds, max_interval_seconds, filepath, file_path, weather_path)

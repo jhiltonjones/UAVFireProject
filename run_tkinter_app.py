@@ -42,7 +42,7 @@ def predict_image(image_tensor):
 def display_image():
     img_path = select_random_image()
     img = Image.open(img_path)
-    img = img.resize((224, 224), Image.LANCZOS)
+    img = img.resize((600, 420), Image.LANCZOS)
     img = ImageTk.PhotoImage(img)
     
     image_label.config(image=img)
@@ -65,11 +65,12 @@ def main():
 
     root = tk.Tk()
     root.title("Image Classification")
+    root.geometry("800x550")
 
     image_label = tk.Label(root)
     image_label.pack()
 
-    prediction_label = tk.Label(root, text="Prediction: ", font=("Helvetica", 16))
+    prediction_label = tk.Label(root, text="Prediction: ", font=("Helvetica", 20))
     prediction_label.pack()
 
     button = tk.Button(root, text="Load UAV Data", command=display_image)
