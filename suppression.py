@@ -2,6 +2,7 @@ import tkinter as tk
 from simfire.sim.simulation import FireSimulation
 from simfire.utils.config import Config
 import yaml
+import math
 
 config_path = './configs/model_configs.yml'
 
@@ -57,6 +58,8 @@ agents = []
 
 count_min = 0
 
+current_agent = None
+
 def run(sim, widgets, fire_button, none_button, buttons_list): # TODO: Add restart functionality.
     global agents, agent_start_pos, run_bool
     run_bool = True
@@ -100,21 +103,20 @@ def check_edge(agent, x, grid):
     return x
 
 def move(sim, x, y, hr, min, sec, grid):
-    global agents, current_mitigation, realtime, count_min, agent_timesteps
+    global agents, current_mitigation, realtime, count_min, agent_timesteps, current_agent
     
-    agents_move = []
     mitigations = []
 
-    for agent in agents:
+    if current_agent is not None:
+        agent = agents[current_agent]
         x_new = check_edge(agent[0], x, grid[1])
         y_new = check_edge(agent[1], y, grid[0])
 
         if current_mitigation:
             mitigations += mitigate(agent, sim, x_new, y_new, current_mitigation)
         agent = (agent[0] + x_new, agent[1] + y_new, agent[2])
-        agents_move.append(agent)
+        agents[current_agent] = agent
 
-    agents = agents_move
     sim.update_agent_positions(agents)
 
     if current_mitigation:
@@ -130,11 +132,13 @@ def move(sim, x, y, hr, min, sec, grid):
             count_min = 0
             spread(sim, t)
 
-def close(sim, fire_button, widgets, buttons_list):
-    global run_bool
+def close(sim, fire_button, widgets, buttons_list, agents_list):
+    global run_bool, current_agent
+    current_agent = None
     sim.rendering = False
     run_bool = False
     reset_buttons(buttons_list)
+    reset_buttons(agents_list)
     toggle_widgets(fire_button, widgets)
 
 def save(sim):
@@ -232,6 +236,17 @@ def modify_config(config_path): # TODO: Add better error-handling
     with open(config_path, 'w') as file:
         yaml.safe_dump(config, file)
 
+def even(i):
+    if (i % 2 == 0):
+        return 1
+    else:
+        return 0
+
+def setAgent(i, buttons):
+    global current_agent
+    reset_buttons(buttons)
+    buttons[i]["state"] = "disabled"
+    current_agent = i
 
 def controls(entries, agent_start_pos_entry):
     global config_path, root, speed, realtime, agent_timesteps, hr, min, sec
@@ -343,17 +358,29 @@ def controls(entries, agent_start_pos_entry):
     buttons_list = mitigation_buttons.winfo_children()
     widgets += mitigation_buttons.winfo_children()
 
+    agent_buttons = []
     # Additional Buttons
     bot_bottons = tk.Frame(root)
     bot_bottons.pack(pady=5)
 
-    close_button = tk.Button(bot_bottons, text="Close", command=lambda: close(sim, fire_button, widgets, buttons_list))
+    close_button = tk.Button(bot_bottons, text="Close", command=lambda: close(sim, fire_button, widgets, buttons_list, agent_buttons))
     close_button.grid(row=0, column=0)
 
     save_button = tk.Button(bot_bottons, text="Save", command=lambda: save(sim))
     save_button.grid(row=0, column=1)
 
     widgets += bot_bottons.winfo_children()
+
+    # Agents
+    agents_frame = tk.Frame(root)
+    agents_frame.pack(pady=5)
+
+    for i in range(int(num_agents.getValue())):
+        agent_button = tk.Button(agents_frame, text=f"Agent {i + 1}", command=lambda x = i: setAgent(x, agent_buttons))
+        agent_button.grid(row=math.ceil((i + 1)/2) - 1, column=even(i + 1))
+    
+    agent_buttons += agents_frame.winfo_children()
+    widgets += agents_frame.winfo_children()
 
     toggle_widgets(fire_button, widgets)
     root.mainloop()
