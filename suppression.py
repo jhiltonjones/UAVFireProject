@@ -3,6 +3,8 @@ from simfire.sim.simulation import FireSimulation
 from simfire.utils.config import Config
 import yaml
 import math
+from threading import Thread
+import time
 
 config_path = './configs/model_configs.yml'
 
@@ -60,6 +62,10 @@ count_min = 0
 
 current_agent = None
 
+def ping(args):
+    args.run(0)
+    time.sleep(2)
+
 def run(sim, widgets, fire_button, none_button, buttons_list): # TODO: Add restart functionality.
     global agents, agent_start_pos, run_bool
     run_bool = True
@@ -74,6 +80,10 @@ def run(sim, widgets, fire_button, none_button, buttons_list): # TODO: Add resta
 
     sim.update_agent_positions(agents)
     sim.run_mitigation()
+
+    thread = Thread(target = ping, args = (sim, )) # TODO: Explore improvements so programme does not get slowed a lot
+    thread.start()
+    thread.join()
 
 def sign(x):
     if x == 0:
