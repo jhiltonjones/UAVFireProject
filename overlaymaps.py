@@ -5,7 +5,6 @@ from pyproj import Transformer
 import numpy as np
 import os
 import glob
-import rasterio
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 
 def reproject_raster(input_raster_path, output_raster_path, target_crs):
@@ -45,7 +44,6 @@ def readcenterinfo(file_path):
         with open(file_path, 'r') as file:
             lines = file.readlines()
 
-        
         lon, lat = None, None
 
         for line in lines:
@@ -64,13 +62,12 @@ def readcenterinfo(file_path):
     except Exception as e:
         print(f"Error parsing weather info: {e}")
         return None, None
+
 def normalise(array):
     array_min, array_max = array.min(), array.max()
     return (array - array_min) / (array_max - array_min)
 
-
-
-def overlay_raster_at_point(base_raster_path, overlay_raster_path, zoom_scale=0.1):
+def overlay_raster_at_point(base_raster_path, overlay_raster_path, extra_raster_path, zoom_scale=0.1):
     try:
         with rasterio.open(base_raster_path) as base_src:
             band1 = base_src.read(1)  
@@ -112,21 +109,39 @@ def overlay_raster_at_point(base_raster_path, overlay_raster_path, zoom_scale=0.
             plt.imshow(band1_normalised, cmap='Greens', extent=base_extent, interpolation='none')
             plt.imshow(band2_masked, cmap='Oranges_r', extent=overlay_extent, alpha=1.0, interpolation='none')
             plt.title('Overlay Raster on Base Raster')
+            plt.xlabel('Distance (km)')
+            plt.ylabel('Distance (km)')
             plt.xlim(zoomed_extent[0], zoomed_extent[1])
             plt.ylim(zoomed_extent[2], zoomed_extent[3])
             plt.show()
-            # plt.figure(figsize=(10, 10))
-            # plt.imshow(band1_normalised, cmap='Grays', extent=base_extent, interpolation='none')
-            # plt.imshow(band2_masked, cmap='Reds_r', extent=overlay_extent, alpha=1.0, interpolation='none')
-            # plt.title('Overlay Raster on Base Raster')
-            # plt.xlim(zoomed_extent2[0], zoomed_extent2[1])
-            # plt.ylim(zoomed_extent2[2], zoomed_extent2[3])
-            # plt.show()
+
+            with rasterio.open(extra_raster_path) as extra_src:
+                band3 = extra_src.read(1)
+                nodata = extra_src.nodata
+                mask = band3 == nodata
+                band3_masked = np.ma.masked_array(band3, mask=mask)
+                extra_extent = [
+                    extra_src.bounds.left, 
+                    extra_src.bounds.right, 
+                    extra_src.bounds.bottom, 
+                    extra_src.bounds.top
+                ]
+
+                plt.figure(figsize=(10, 10))
+                plt.imshow(band3_masked, cmap='gray', extent=extra_extent, interpolation='none')
+                plt.title('Road Map')
+                plt.xlabel('Distance (km)')
+                plt.ylabel('Distance (km)')
+                plt.xlim(zoomed_extent[0], zoomed_extent[1])
+                plt.ylim(zoomed_extent[2], zoomed_extent[3])
+                plt.show()
+
             with rasterio.open(base_raster_path) as base_src:
-                
                 plt.figure(figsize=(10, 10))
                 plt.imshow(band1_normalised, cmap='Greens', extent=base_extent, interpolation='none')
-                plt.scatter([center_x], [center_y], color='red', s=50, label='Overlay Center')  
+                plt.scatter([center_x], [center_y], color='red', s=50, label='Overlay Center') 
+                plt.xlabel('Distance (km)')
+                plt.ylabel('Distance (km)') 
                 plt.title('Overlay Raster on Base Raster with Center Marked')
                 plt.legend()
                 plt.show()
@@ -134,9 +149,6 @@ def overlay_raster_at_point(base_raster_path, overlay_raster_path, zoom_scale=0.
     except Exception as e:
         print(f"An error occurred: {e}")
 
-
-    except Exception as e:
-        print(f"An error occurred: {e}")
 def get_first_matching_file(pattern):
     print("Looking for files matching pattern:", pattern)
     files = glob.glob(pattern)
@@ -145,25 +157,9 @@ def get_first_matching_file(pattern):
         return files[0]
     return None
 
-def display_location_on_raster_utm(raster_path, x, y):
-    """ Display UTM coordinates on the raster image. """
-    with rasterio.open(raster_path) as src:
-        col, row = src.index(x, y)
-
-        band1 = src.read(1)
-        band1_normalised = normalise(band1)
-        plt.figure(figsize=(10, 10))
-
-        plt.imshow(band1_normalised, cmap='Greens')
-        plt.scatter([col], [row], color='red', s=50)
-        plt.title('Raster Display with Specified UTM Location')
-        plt.show()
-
 def check_crs(raster_path):
-        with rasterio.open(raster_path) as src:
-            return src.crs
-
-
+    with rasterio.open(raster_path) as src:
+        return src.crs
 
 def main():
     script_directory = ('models/03-real-fuels')
@@ -171,15 +167,16 @@ def main():
     tif_file_path = get_first_matching_file(tif_file_pattern)
     base_raster_path = 'models/04-fire-potential/outputs/head_fire_spread_rate_006.tif'
     overlay_raster_path = tif_file_path
+    extra_raster_path = '/home/jack/Downloads/LF2020_Roads_220_CONUS/LC20_Roads_220.tif'  
     file_path = 'out/weather_info.txt'  
     longitude, latitude = readcenterinfo(file_path) 
     print(longitude, latitude)
     utm_x, utm_y = convert_lat_lon_to_utm(longitude, latitude)
 
-
     desired_crs = 'EPSG:32610'
     base_raster_crs = check_crs(base_raster_path)
     overlay_raster_crs = check_crs(overlay_raster_path)
+    extra_raster_crs = check_crs(extra_raster_path)
 
     if base_raster_crs != desired_crs:
         new_base_raster_path = os.path.splitext(base_raster_path)[0] + '_reprojected.tif'
@@ -190,13 +187,20 @@ def main():
         new_overlay_raster_path = os.path.splitext(overlay_raster_path)[0] + '_reprojected.tif'
         reproject_raster(overlay_raster_path, new_overlay_raster_path, desired_crs)
         overlay_raster_path = new_overlay_raster_path
-    
+
+    if extra_raster_crs != desired_crs:
+        new_extra_raster_path = os.path.splitext(extra_raster_path)[0] + '_reprojected.tif'
+        reproject_raster(extra_raster_path, new_extra_raster_path, desired_crs)
+        extra_raster_path = new_extra_raster_path
+
     base_raster_crs = check_crs(base_raster_path)
     overlay_raster_crs = check_crs(overlay_raster_path)
+    extra_raster_crs = check_crs(extra_raster_path)
 
     print("Base Raster CRS:", base_raster_crs)
     print("Overlay Raster CRS:", overlay_raster_crs)
-    overlay_raster_at_point(base_raster_path, overlay_raster_path)
-    # display_location_on_raster_utm(base_raster_path, utm_x, utm_y)
+    print("Extra Raster CRS:", extra_raster_crs)
+    overlay_raster_at_point(base_raster_path, overlay_raster_path, extra_raster_path)
+
 if __name__ == "__main__":
     main()

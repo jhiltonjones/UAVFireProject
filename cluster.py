@@ -20,17 +20,6 @@ script_filename = './01-run.sh'
 wx_csv_path = os.path.join(script_directory, 'wx.csv')
 
 def convert_utm_to_lat_lon_from_file(filepath, input_crs='epsg:32610', output_crs='epsg:4326'):
-    """
-    Read UTM coordinates from a file and convert them to latitude and longitude.
-
-    Args:
-    filepath (str): Path to the file containing UTM coordinates.
-    input_crs (str): The EPSG code of the input coordinate reference system (default UTM).
-    output_crs (str): The EPSG code of the output coordinate reference system (latitude and longitude).
-
-    Returns:
-    dict: A dictionary with keys as position descriptions and values as tuples of (longitude, latitude).
-    """
     with open(filepath, 'r') as file:
         line = file.readline().strip()
         utm_coords_strings = line.split('\t')  
@@ -81,7 +70,7 @@ def run_shell_script(script_filename, output_widget):
     try:
         display(output_widget, "Running Fire Model...") 
         os.chdir(script_directory)
-        subprocess.run(['bash', script_filename], check=True)
+        # subprocess.run(['bash', script_filename], check=True)
         os.chdir("../../")
     except subprocess.CalledProcessAnswer as e:
         print(f"An error occurred while running the shell script: {e}")
@@ -164,9 +153,9 @@ def process_raster(output_widget):
         
         area_top_left = num_pixels_top_left * pixel_area / 1e6  
         
-        area_top_right = num_pixels_top_right * pixel_area / 1e6
-        area_bottom_left = num_pixels_bottom_left * pixel_area / 1e6
-        area_bottom_right = num_pixels_bottom_right * pixel_area / 1e6
+        area_top_right = round(num_pixels_top_right * pixel_area / 1e6)
+        area_bottom_left = round(num_pixels_bottom_left * pixel_area / 1e6)
+        area_bottom_right = round(num_pixels_bottom_right * pixel_area / 1e6)
         
         quadrants = [
             ("Top Left", area_top_left),
@@ -202,9 +191,9 @@ def process_raster(output_widget):
                 time_needed_to_detect = 9
 
             num_drones_needed = total_time_detection / time_needed_to_detect
-            display(output_widget, f"The number of drones needed to complete this quandrant in {time_needed_to_detect} mins is: {num_drones_needed}")
+            display(output_widget, f"The number of drones needed to complete this quandrant in {round(time_needed_to_detect)} mins is: {round(num_drones_needed)}")
             total_num_drones += num_drones_needed
-            display(output_widget, f"The total number of dornes needed for this area is: {total_num_drones}")
+            display(output_widget, f"The total number of dornes needed for this area is: {round(total_num_drones)}")
 
 
             
