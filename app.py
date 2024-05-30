@@ -90,13 +90,13 @@ def perform_prediction(file_path):
 
 def run_fire_script():
     try:
-        env = os.environ.copy()
-        env['ELMFIRE_SCRATCH_BASE'] = '/home/jack/scratch'
-        env['ELMFIRE_BASE_DIR'] = '/home/jack/elmfire'
-        env['ELMFIRE_INSTALL_DIR'] = f"{env['ELMFIRE_BASE_DIR']}/build/linux/bin"
-        env['CLOUDFIRE_SERVER'] = '172.92.17.198'
-        env['PATH'] = env['PATH'] + f":{env['ELMFIRE_INSTALL_DIR']}:{env['ELMFIRE_BASE_DIR']}/cloudfire"
-        env['CLOUDFIRE_BASE_DIR'] = '/home/jack/elmfire'
+        # env = os.environ.copy()
+        # env['ELMFIRE_SCRATCH_BASE'] = '/home/jack/scratch'
+        # env['ELMFIRE_BASE_DIR'] = '/home/jack/elmfire'
+        # env['ELMFIRE_INSTALL_DIR'] = f"{env['ELMFIRE_BASE_DIR']}/build/linux/bin"
+        # env['CLOUDFIRE_SERVER'] = '172.92.17.198'
+        # env['PATH'] = env['PATH'] + f":{env['ELMFIRE_INSTALL_DIR']}:{env['ELMFIRE_BASE_DIR']}/cloudfire"
+        # env['CLOUDFIRE_BASE_DIR'] = '/home/jack/elmfire'
 
         subprocess.run(['python3', 'firedata.py'], check=True, env=env)
         app.logger.info("Fire prediction script executed successfully.")
