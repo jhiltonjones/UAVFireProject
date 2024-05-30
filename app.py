@@ -106,7 +106,7 @@ def run_fire_script():
 
 
 def run_tkinter_app():
-    subprocess.Popen(['python3', 'run_tkinter_app.py'])
+    subprocess.Popen(['python3', 'img_classification.py'])
 
 @app.route('/run_script', methods=['POST'])
 def run_script():
