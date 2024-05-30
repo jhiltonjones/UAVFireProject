@@ -1,7 +1,7 @@
 # MIND6003 UAV Fire Program
-This code was designed for the University of Southampton's module 'MINDS 6003', it is used to set a foundational idea of how the XPRIZE Wildfire challenge can be solved with a broader functionality of optimising fire suppression. This code has three sections: Clustering, Detection and the Practice Arena.
-To run this code please ensure that requirements.txt, ELMFIRE<sup>[1]</sup> and SimFire<sup>[2]</sup> has been properly installed with the environment correctly set up. Please refer to the proper documentation for each of fire modelling software (https://elmfire.io/) and (https://mitrefireline.github.io/simfire/).
-When ELMFIRE<sup>[1]</sup> and SimFire has been installed our code can be run from the terminal using:
+This code was designed for the University of Southampton's module 'MIND6003', it is used to set a foundational idea of how the XPRIZE Wildfire challenge can be solved with a broader functionality of optimising fire suppression. This code has three sections: Clustering, Detection and the Practice Tool Arena.
+To run this code please ensure that requirements.txt, ELMFIRE<sup>[1]</sup> and SimFire<sup>[2]</sup> has been properly installed with the environment correctly set up. Please refer to the proper documentation for each of fire modelling softwares (https://elmfire.io/) and (https://mitrefireline.github.io/simfire/).
+When ELMFIRE<sup>[1]</sup> and SimFire<sup>[2]</sup> has been installed our code can be run from the terminal using:
 
 ```bash
 python app.py
@@ -27,5 +27,5 @@ https://youtu.be/vrg9H3ZMUhQ
 
 ## References
 [1] C. Lautenberger, “Wildland fire modeling with an eulerian level set method and automated calibration,” Fire Safety Journal, vol. 62,
-pp. 289–298, 2013.
+pp. 289–298, 2013.\
 [2] M. Doyle, M. Threet, M. Dotter, C. Kempis, A. Tapley, and T. Welsh, “SimFire.” https://github.com/mitrefireline/simfire, Apr. 2024.
